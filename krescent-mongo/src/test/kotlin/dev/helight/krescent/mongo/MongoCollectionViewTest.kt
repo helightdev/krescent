@@ -2,7 +2,9 @@ package dev.helight.krescent.mongo
 
 import com.mongodb.kotlin.client.coroutine.MongoClient
 import dev.helight.krescent.checkpoints.CheckpointBucket
+import dev.helight.krescent.checkpoints.StoredCheckpoint
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonPrimitive
 import org.bson.Document
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -10,6 +12,8 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.Duration
+import java.time.Instant
+import kotlin.test.assertNull
 
 @Testcontainers
 class MongoCollectionViewTest {
@@ -47,6 +51,46 @@ class MongoCollectionViewTest {
 
         view.restoreCheckpoint(bucket)
         assertEquals(1, view.collection.countDocuments())
+    }
+
+
+    @Test
+    fun `Test Checkpoint Storage`() = runBlocking {
+        val client = MongoClient.create(connectionString)
+        val database = client.getDatabase("test")
+        val storage = MongoCheckpointStorage(database)
+
+        val testCheckpointNS = "test-namespace"
+        assertNull(storage.getLatestCheckpoint(testCheckpointNS))
+
+        val checkpoint = StoredCheckpoint(
+            namespace = testCheckpointNS,
+            revision = 1,
+            position = "test-position",
+            timestamp = Instant.now(),
+            data = JsonPrimitive("test-data")
+        )
+
+        storage.storeCheckpoint(checkpoint)
+        val loadedCheckpoint = storage.getLatestCheckpoint(testCheckpointNS)
+        assertEquals(checkpoint.namespace, loadedCheckpoint?.namespace)
+        assertEquals(1, loadedCheckpoint?.revision)
+
+        val updatedCheckpoint = StoredCheckpoint(
+            namespace = testCheckpointNS,
+            revision = 2,
+            position = "updated-position",
+            timestamp = Instant.now(),
+            data = JsonPrimitive("updated-data")
+        )
+        storage.storeCheckpoint(updatedCheckpoint)
+
+        val reloadedCheckpoint = storage.getLatestCheckpoint(testCheckpointNS)
+        assertEquals(checkpoint.namespace, reloadedCheckpoint?.namespace)
+        assertEquals(2, reloadedCheckpoint?.revision)
+
+        storage.clearCheckpoints()
+        assertNull(storage.getLatestCheckpoint(testCheckpointNS))
     }
 
 }
