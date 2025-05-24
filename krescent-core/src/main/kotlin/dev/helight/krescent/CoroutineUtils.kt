@@ -2,12 +2,9 @@ package dev.helight.krescent
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -15,6 +12,29 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 fun <T> Flow<T>.bufferInMemory(scope: CoroutineScope): FlowBuffer<T> {
     return FlowBuffer<T>().apply {
         start(scope, this@bufferInMemory)
+    }
+}
+
+class FlowBuffer<T> {
+    private val buffer = mutableListOf<T>()
+    private var job: Job? = null
+
+    fun start(scope: CoroutineScope, flow: Flow<T>) {
+        job = scope.launch {
+            flow.collect {
+                handle(it)
+            }
+        }
+    }
+
+    private fun handle(value: T) {
+        buffer.add(value)
+    }
+
+    fun stop(): List<T> {
+        job?.cancel()
+        job = null
+        return buffer
     }
 }
 
@@ -61,50 +81,4 @@ fun <T> joinSequentialFlows(
         switchToLive = true
     }
     secondJob.join()
-}
-
-class FlowBuffer<T> {
-    private val buffer = mutableListOf<T>()
-    private var job: Job? = null
-
-    fun start(scope: CoroutineScope, flow: Flow<T>) {
-        job = scope.launch {
-            flow.collect {
-                handle(it)
-            }
-        }
-    }
-
-    private fun handle(value: T) {
-        buffer.add(value)
-    }
-
-    fun stop(): List<T> {
-        job?.cancel()
-        job = null
-        return buffer
-    }
-}
-
-
-fun main() {
-    runBlocking {
-        joinSequentialFlows(flow {
-            emit("A")
-            delay(50)
-            emit("B")
-            delay(50)
-            emit("C")
-        }, flow {
-            emit("1")
-            delay(50)
-            emit("2")
-            delay(50)
-            emit("3")
-            delay(500)
-            emit("4 - Final")
-        }).collect { value ->
-            println("Received value: $value")
-        }
-    }
 }

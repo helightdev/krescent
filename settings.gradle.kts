@@ -21,5 +21,6 @@ plugins {
 // Learn more about structuring projects with Gradle - https://docs.gradle.org/8.7/userguide/multi_project_builds.html
 include(":krescent-core")
 include(":krescent-kurrent")
+include(":krescent-mongo")
 
 rootProject.name = "krescent"

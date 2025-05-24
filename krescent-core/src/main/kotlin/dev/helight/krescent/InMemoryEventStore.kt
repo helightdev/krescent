@@ -1,53 +1,59 @@
 package dev.helight.krescent
 
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
+import kotlinx.serialization.json.encodeToStream
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.time.Instant
 
 
-class InMemoryEventStore : StreamingEventSource, SubscribingEventSource, EventPublisher {
+class InMemoryEventStore(
+    private val events: MutableList<EventMessage> = mutableListOf(),
+) : StreamingEventSource<InMemoryEventStore.StreamingToken>, SubscribingEventSource, EventPublisher {
+
     private val mutex = Mutex()
-    private val events = mutableListOf<EventMessage>()
-    private val eventFlow = MutableSharedFlow<Pair<EventMessage, StreamingEventSource.Token>>(
+    private val eventFlow = MutableSharedFlow<Pair<EventMessage, StreamingToken>>(
         extraBufferCapacity = 255
     )
 
-    data class InMemoryToken(val index: Int) : StreamingEventSource.Token {
+    data class StreamingToken(val index: Int) : dev.helight.krescent.StreamingToken<StreamingToken> {
         override fun serialize(): String = index.toString()
+        override fun compareTo(other: StreamingToken): Int = index.compareTo(other.index)
     }
 
-    override suspend fun getHeadToken(): StreamingEventSource.Token = InMemoryToken(-1)
+    override suspend fun getHeadToken(): StreamingToken = StreamingToken(-1)
 
-    override suspend fun getTailToken(): StreamingEventSource.Token = mutex.withLock {
-        InMemoryToken(events.size - 1)
+    override suspend fun getTailToken(): StreamingToken = mutex.withLock {
+        StreamingToken(events.size - 1)
     }
 
-    override suspend fun getTokenAtTime(timestamp: Instant): StreamingEventSource.Token = mutex.withLock {
+    override suspend fun getTokenAtTime(timestamp: Instant): StreamingToken = mutex.withLock {
         val index = events.indexOfFirst { it.timestamp >= timestamp }
         if (index == -1) {
-            InMemoryToken(events.size - 1)
+            StreamingToken(events.size - 1)
         } else {
-            InMemoryToken(index - 1)
+            StreamingToken(index - 1)
         }
     }
 
-    override suspend fun getTokenForEventId(eventId: String): StreamingEventSource.Token? = mutex.withLock {
+    override suspend fun getTokenForEventId(eventId: String): StreamingToken? = mutex.withLock {
         val index = events.indexOfFirst { it.id == eventId }
         if (index == -1) {
             null
         } else {
-            InMemoryToken(index)
+            StreamingToken(index)
         }
     }
 
-    override suspend fun deserializeToken(encoded: String): StreamingEventSource.Token {
+    override suspend fun deserializeToken(encoded: String): StreamingToken {
         return try {
-            InMemoryToken(encoded.toInt())
+            StreamingToken(encoded.toInt())
         } catch (e: NumberFormatException) {
             // Default to head if parsing fails
             getHeadToken()
@@ -55,17 +61,16 @@ class InMemoryEventStore : StreamingEventSource, SubscribingEventSource, EventPu
     }
 
     override suspend fun fetchEventsAfter(
-        token: StreamingEventSource.Token,
+        token: StreamingToken?,
         limit: Int?,
-    ): Flow<Pair<EventMessage, StreamingEventSource.Token>> {
+    ): Flow<Pair<EventMessage, StreamingToken>> {
         val buffer = mutex.withLock {
-            if (token !is InMemoryToken) error("Invalid token type")
-            val startIndex = token.index + 1
+            val startIndex = (token ?: getHeadToken()).index + 1
             events.drop(startIndex).let {
                 if (limit == null) it
                 else it.take(limit)
             }.toList().mapIndexed { index, event ->
-                event to InMemoryToken(startIndex + index)
+                event to StreamingToken(startIndex + index)
             }
         }
         return flow {
@@ -75,10 +80,9 @@ class InMemoryEventStore : StreamingEventSource, SubscribingEventSource, EventPu
         }
     }
 
-    override suspend fun streamEvents(startToken: StreamingEventSource.Token?): Flow<Pair<EventMessage, StreamingEventSource.Token>> {
+    override suspend fun streamEvents(startToken: StreamingToken?): Flow<Pair<EventMessage, StreamingToken>> {
         return joinSequentialFlows(
-            fetchEventsAfter(startToken ?: getHeadToken()),
-            eventFlow.asSharedFlow()
+            fetchEventsAfter(startToken ?: getHeadToken()), eventFlow.asSharedFlow()
         )
     }
 
@@ -90,9 +94,32 @@ class InMemoryEventStore : StreamingEventSource, SubscribingEventSource, EventPu
     override suspend fun publish(event: EventMessage) {
         val newToken = mutex.withLock {
             events.add(event)
-            InMemoryToken(events.size - 1)
+            StreamingToken(events.size - 1)
         }
         eventFlow.emit(event to newToken)
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
+    suspend fun serialize(): ByteArray = mutex.withLock {
+        ByteArrayOutputStream().use {
+            Json.encodeToStream(SerializedState(events), it)
+            it.toByteArray()
+        }
+    }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    suspend fun load(data: ByteArray) {
+        mutex.withLock {
+            events.clear()
+            events.addAll(ByteArrayInputStream(data).use {
+                Json.decodeFromStream<SerializedState>(it)
+            }.events)
+        }
+    }
+
+    @Serializable
+    data class SerializedState(
+        val events: List<EventMessage>,
+    )
 }
+
