@@ -1,7 +1,7 @@
 package dev.helight.krescent.kurrent
 
-import dev.helight.krescent.EventMessage
 import dev.helight.krescent.bufferInMemory
+import dev.helight.krescent.event.EventMessage
 import io.kurrent.dbclient.DeleteStreamOptions
 import io.kurrent.dbclient.KurrentDBClient
 import io.kurrent.dbclient.KurrentDBConnectionString
@@ -10,15 +10,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
-import org.junit.Before
-import org.junit.jupiter.api.AfterAll
+import kotlinx.serialization.json.*
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeAll
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -41,27 +34,28 @@ class KurrentEventSourceTest {
 
     }
 
-    private fun runWithTestStream(block: suspend CoroutineScope.(KurrentDBClient, KurrentEventSource) -> Unit) = runBlocking {
-        val client = KurrentDBClient.create(
-            KurrentDBConnectionString.parseOrThrow(connectionString),
-        )
-        val eventSource = KurrentEventSource(client, testStreamId, testCredentials)
+    private fun runWithTestStream(block: suspend CoroutineScope.(KurrentDBClient, KurrentEventSource) -> Unit) =
+        runBlocking {
+            val client = KurrentDBClient.create(
+                KurrentDBConnectionString.parseOrThrow(connectionString),
+            )
+            val eventSource = KurrentEventSource(client, testStreamId, testCredentials)
 
-        try {
-            block(client, eventSource)
-        } finally {
             try {
-                client.deleteStream(
-                    testStreamId, DeleteStreamOptions.get()
-                        .authenticated(testCredentials)
-                ).get()
-                client.shutdown().get()
-            } catch (e: Exception) {
-                println("Failed to delete stream $testStreamId: ${e.message}")
+                block(client, eventSource)
+            } finally {
+                try {
+                    client.deleteStream(
+                        testStreamId, DeleteStreamOptions.get()
+                            .authenticated(testCredentials)
+                    ).get()
+                    client.shutdown().get()
+                } catch (e: Exception) {
+                    println("Failed to delete stream $testStreamId: ${e.message}")
+                }
             }
-        }
 
-    }
+        }
 
     @Test
     fun `Write and Resolve Events`() = runWithTestStream { client, eventSource ->

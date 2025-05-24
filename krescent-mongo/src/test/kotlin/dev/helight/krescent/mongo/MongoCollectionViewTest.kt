@@ -1,8 +1,8 @@
 package dev.helight.krescent.mongo
 
 import com.mongodb.kotlin.client.coroutine.MongoClient
-import dev.helight.krescent.checkpoints.CheckpointBucket
-import dev.helight.krescent.checkpoints.StoredCheckpoint
+import dev.helight.krescent.checkpoint.CheckpointBucket
+import dev.helight.krescent.checkpoint.StoredCheckpoint
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonPrimitive
 import org.bson.Document
@@ -34,7 +34,7 @@ class MongoCollectionViewTest {
     fun `Create and load checkpoints`() = runBlocking {
         val client = MongoClient.create(connectionString)
         val database = client.getDatabase("test")
-        val view = MongoCollectionView("MyReadModel", database)
+        val view = MongoCollectionProjector("MyReadModel", database)
         view.collection.drop()
         view.collection.insertOne(Document().apply {
             put("name", "test")

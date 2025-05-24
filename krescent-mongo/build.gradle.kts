@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
     // Apply the shared build logic from a convention plugin.
     // The shared code is located in `buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts`.

@@ -1,5 +1,6 @@
-package dev.helight.krescent
+package dev.helight.krescent.source
 
+import dev.helight.krescent.event.EventMessage
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 
@@ -7,7 +8,7 @@ import java.time.Instant
  * Interface for an event source that provides a replayable stream of events.
  * Supports token-based positioning for fetching events.
  */
-interface StreamingEventSource<TOKEN_TYPE: StreamingToken<TOKEN_TYPE>> {
+interface StreamingEventSource<TOKEN_TYPE : StreamingToken<TOKEN_TYPE>> {
 
     /**
      * Gets a token for the head of the stream, which is *before* the first event in the stream.
@@ -62,15 +63,3 @@ interface StreamingEventSource<TOKEN_TYPE: StreamingToken<TOKEN_TYPE>> {
     suspend fun streamEvents(startToken: TOKEN_TYPE? = null): Flow<Pair<EventMessage, TOKEN_TYPE>>
 }
 
-/**
- * A token representing a position in the event stream.
- * The implementation can specify what exactly the token encapsulates.
- */
-interface StreamingToken<SELF: StreamingToken<SELF>> : Comparable<SELF> {
-    /**
-     * Serializes the token into a string representation.
-     *
-     * @return A string representing the serialized token.
-     */
-    fun serialize(): String
-}

@@ -1,6 +1,6 @@
 package dev.helight.krescent.kurrent
 
-import dev.helight.krescent.StreamingToken
+import dev.helight.krescent.source.StreamingToken
 import io.kurrent.dbclient.ReadStreamOptions
 import io.kurrent.dbclient.SubscribeToStreamOptions
 
@@ -21,11 +21,13 @@ sealed class KurrentStreamingToken() : StreamingToken<KurrentStreamingToken> {
                 is TailStreamingToken -> -1
                 is RevisionStreamingToken -> -1
             }
+
             is TailStreamingToken -> when (other) {
                 is HeadStreamingToken -> 1
                 is TailStreamingToken -> 0
                 is RevisionStreamingToken -> 1
             }
+
             is RevisionStreamingToken -> when (other) {
                 is HeadStreamingToken -> 1
                 is TailStreamingToken -> -1

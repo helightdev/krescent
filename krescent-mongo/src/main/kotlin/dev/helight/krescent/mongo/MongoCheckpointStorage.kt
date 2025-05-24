@@ -3,8 +3,8 @@ package dev.helight.krescent.mongo
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.ReplaceOptions
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
-import dev.helight.krescent.checkpoints.CheckpointStorage
-import dev.helight.krescent.checkpoints.StoredCheckpoint
+import dev.helight.krescent.checkpoint.CheckpointStorage
+import dev.helight.krescent.checkpoint.StoredCheckpoint
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -12,7 +12,7 @@ import org.bson.Document
 
 class MongoCheckpointStorage(
     val database: MongoDatabase,
-    val collectionName: String = "checkpoints",
+    collectionName: String = "checkpoints",
 ) : CheckpointStorage {
 
     private val collection = database.getCollection<Document>(collectionName)
@@ -48,7 +48,7 @@ class MongoCheckpointStorage(
     private fun documentToCheckpoint(document: Document): StoredCheckpoint {
         return StoredCheckpoint(
             namespace = document.getString("_id"),
-            revision = document.getLong("revision"),
+            revision = document.getInteger("revision"),
             position = document.getString("position"),
             timestamp = document.getDate("timestamp").toInstant(),
             data = Json.Default.decodeFromString(document.getString("data")!!),

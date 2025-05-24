@@ -1,5 +1,8 @@
 package dev.helight.krescent
 
+import dev.helight.krescent.event.EventMessage
+import dev.helight.krescent.source.impl.ChronoBufferedMergeStreamEventSource
+import dev.helight.krescent.source.impl.InMemoryEventStore
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonNull
@@ -31,7 +34,7 @@ class ChronoBufferedMergeStreamTest {
                 EventMessage(type = "4", payload = JsonNull, timestamp = Instant.ofEpochMilli(4)),
             )
         )
-        val merged = ChronoBufferedMergeStream.Companion.create(listOf(a, b, c)).fetchEventsAfter().toList()
+        val merged = ChronoBufferedMergeStreamEventSource.Companion.create(listOf(a, b, c)).fetchEventsAfter().toList()
         Assertions.assertTrue(merged.mapIndexed { index, pair -> pair.first.type == "${index + 1}" }.all { it })
     }
 

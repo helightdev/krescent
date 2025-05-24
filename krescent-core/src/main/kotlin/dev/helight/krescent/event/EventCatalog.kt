@@ -1,7 +1,6 @@
 package dev.helight.krescent.event
 
-import dev.helight.krescent.EventMessage
-import dev.helight.krescent.StreamingToken
+import dev.helight.krescent.source.StreamingToken
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -16,10 +15,10 @@ fun buildEventCatalog(block: EventCatalogBuilder.() -> Unit): EventCatalog {
 
 class EventCatalogBuilder {
 
-    val registrations: MutableList<EventRegistration<*>> = mutableListOf()
+    val registrations: MutableList<EventCatalog.EventRegistration<*>> = mutableListOf()
 
-    inline fun <reified T: Event> event(name: String) {
-        val registration = EventRegistration(
+    inline fun <reified T : Event> event(name: String) {
+        val registration = EventCatalog.EventRegistration(
             type = T::class,
             eventName = name,
             serializer = serializer<T>(),
@@ -54,6 +53,7 @@ class EventCatalog(
         return evt
     }
 
+    @Suppress("unused")
     fun encode(event: Event): EventMessage {
         val eventRegistration = eventTypes[event::class] ?: error("Event type not registered")
         val payload = eventRegistration.unsafeEncode(event)
@@ -64,15 +64,26 @@ class EventCatalog(
             payload = payload
         )
     }
-}
 
-data class EventRegistration<T: Event>(
-    val type: KClass<T>,
-    val eventName: String,
-    val serializer: KSerializer<T>,
-) {
-    @Suppress("UNCHECKED_CAST")
-    fun unsafeEncode(event: Event): JsonElement {
-        return Json.encodeToJsonElement(serializer, event as T)
+    fun create(event: Event): EventMessage {
+        val eventRegistration =
+            eventTypes[event::class] ?: error("Event type not registered: ${event::class.simpleName}")
+        val payload = eventRegistration.unsafeEncode(event)
+        val type = eventRegistration.eventName
+        return EventMessage(
+            type = type,
+            payload = payload
+        )
+    }
+
+    data class EventRegistration<T : Event>(
+        val type: KClass<T>,
+        val eventName: String,
+        val serializer: KSerializer<T>,
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        fun unsafeEncode(event: Event): JsonElement {
+            return Json.encodeToJsonElement(serializer, event as T)
+        }
     }
 }

@@ -1,5 +1,8 @@
 package dev.helight.krescent
 
+import dev.helight.krescent.event.EventMessage
+import dev.helight.krescent.source.StreamingToken
+import dev.helight.krescent.source.impl.InMemoryEventStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
@@ -11,7 +14,7 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 
 class InMemoryEventStoreTest {
 
@@ -28,27 +31,23 @@ class InMemoryEventStoreTest {
         assertEquals("42", token.serialize())
 
         val deserializedToken = eventStore.deserializeToken("42")
-        assertTrue(deserializedToken is InMemoryEventStore.StreamingToken)
-        assertEquals(42, (deserializedToken as InMemoryEventStore.StreamingToken).index)
+        assertEquals(42, deserializedToken.index)
 
         // Test invalid token
         val invalidToken = eventStore.deserializeToken("not-a-number")
-        assertTrue(invalidToken is InMemoryEventStore.StreamingToken)
-        assertEquals(-1, (invalidToken as InMemoryEventStore.StreamingToken).index)
+        assertEquals(-1, invalidToken.index)
     }
 
     @Test
     fun `test getHeadToken returns token with index -1`() = runBlocking {
         val headToken = eventStore.getHeadToken()
-        assertTrue(headToken is InMemoryEventStore.StreamingToken)
-        assertEquals(-1, (headToken as InMemoryEventStore.StreamingToken).index)
+        assertEquals(-1, headToken.index)
     }
 
     @Test
     fun `test getTailToken returns token with index -1 when store is empty`() = runBlocking {
         val tailToken = eventStore.getTailToken()
-        assertTrue(tailToken is InMemoryEventStore.StreamingToken)
-        assertEquals(-1, (tailToken as InMemoryEventStore.StreamingToken).index)
+        assertEquals(-1, tailToken.index)
     }
 
     @Test
@@ -59,8 +58,7 @@ class InMemoryEventStoreTest {
         }
 
         val tailToken = eventStore.getTailToken()
-        assertTrue(tailToken is InMemoryEventStore.StreamingToken)
-        assertEquals(2, (tailToken as InMemoryEventStore.StreamingToken).index)
+        assertEquals(2, tailToken.index)
     }
 
     @Test
@@ -76,15 +74,15 @@ class InMemoryEventStoreTest {
 
         // Test timestamp before all events
         val tokenBefore = eventStore.getTokenAtTime(now.minusSeconds(20))
-        assertEquals(-1, (tokenBefore as InMemoryEventStore.StreamingToken).index)
+        assertEquals(-1, tokenBefore.index)
 
         // Test timestamp between events
         val tokenMiddle = eventStore.getTokenAtTime(now.minusSeconds(5))
-        assertEquals(0, (tokenMiddle as InMemoryEventStore.StreamingToken).index)
+        assertEquals(0, tokenMiddle.index)
 
         // Test timestamp after all events
         val tokenAfter = eventStore.getTokenAtTime(now.plusSeconds(20))
-        assertEquals(2, (tokenAfter as InMemoryEventStore.StreamingToken).index)
+        assertEquals(2, tokenAfter.index)
     }
 
     @Test
@@ -174,6 +172,7 @@ class InMemoryEventStoreTest {
         assertEquals("event-2", events[1].first.id)
         assertEquals("event-3", events[2].first.id)
     }
+
     @Test
     fun `test delayed publish`() = runBlocking {
         val event1 = createTestEvent(id = "event-1")

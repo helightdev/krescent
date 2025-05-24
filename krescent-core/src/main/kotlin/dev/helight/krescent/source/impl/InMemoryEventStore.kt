@@ -1,5 +1,10 @@
-package dev.helight.krescent
+package dev.helight.krescent.source.impl
 
+import dev.helight.krescent.event.EventMessage
+import dev.helight.krescent.joinSequentialFlows
+import dev.helight.krescent.source.EventPublisher
+import dev.helight.krescent.source.StreamingEventSource
+import dev.helight.krescent.source.SubscribingEventSource
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -12,7 +17,6 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.time.Instant
 
-
 class InMemoryEventStore(
     private val events: MutableList<EventMessage> = mutableListOf(),
 ) : StreamingEventSource<InMemoryEventStore.StreamingToken>, SubscribingEventSource, EventPublisher {
@@ -22,7 +26,7 @@ class InMemoryEventStore(
         extraBufferCapacity = 255
     )
 
-    data class StreamingToken(val index: Int) : dev.helight.krescent.StreamingToken<StreamingToken> {
+    data class StreamingToken(val index: Int) : dev.helight.krescent.source.StreamingToken<StreamingToken> {
         override fun serialize(): String = index.toString()
         override fun compareTo(other: StreamingToken): Int = index.compareTo(other.index)
     }
@@ -54,7 +58,7 @@ class InMemoryEventStore(
     override suspend fun deserializeToken(encoded: String): StreamingToken {
         return try {
             StreamingToken(encoded.toInt())
-        } catch (e: NumberFormatException) {
+        } catch (_: NumberFormatException) {
             // Default to head if parsing fails
             getHeadToken()
         }
@@ -100,9 +104,10 @@ class InMemoryEventStore(
     }
 
     @OptIn(ExperimentalSerializationApi::class)
+    @Suppress("unused")
     suspend fun serialize(): ByteArray = mutex.withLock {
         ByteArrayOutputStream().use {
-            Json.encodeToStream(SerializedState(events), it)
+            Json.Default.encodeToStream(SerializedState(events), it)
             it.toByteArray()
         }
     }
@@ -112,7 +117,7 @@ class InMemoryEventStore(
         mutex.withLock {
             events.clear()
             events.addAll(ByteArrayInputStream(data).use {
-                Json.decodeFromStream<SerializedState>(it)
+                Json.Default.decodeFromStream<SerializedState>(it)
             }.events)
         }
     }
@@ -122,4 +127,3 @@ class InMemoryEventStore(
         val events: List<EventMessage>,
     )
 }
-

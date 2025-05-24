@@ -1,4 +1,6 @@
-package dev.helight.krescent
+package dev.helight.krescent.source
+
+import dev.helight.krescent.event.EventMessage
 
 /**
  * Interface for publishing events to an event source.
@@ -12,4 +14,13 @@ interface EventPublisher {
      * @return The published event message
      */
     suspend fun publish(event: EventMessage)
+
+
+    object Extensions {
+        suspend fun EventPublisher.publishAll(events: List<EventMessage>) {
+            events.forEach { event ->
+                publish(event)
+            }
+        }
+    }
 }

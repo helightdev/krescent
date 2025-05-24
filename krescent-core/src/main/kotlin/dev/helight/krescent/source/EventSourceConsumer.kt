@@ -1,4 +1,4 @@
-package dev.helight.krescent.event
+package dev.helight.krescent.source
 
 interface EventSourceConsumer {
     /**
@@ -10,4 +10,9 @@ interface EventSourceConsumer {
      * Fetches all historic events from the event source and returns afterward.
      */
     suspend fun catchup()
+
+    /**
+     * Sets the event consumer to its initial state or the last stored checkpoint but doesn't start to resolve events.
+     */
+    suspend fun restore()
 }

@@ -1,10 +1,10 @@
-package dev.helight.krescent
+package dev.helight.krescent.event
 
 import dev.helight.krescent.serialization.InstantSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import java.time.Instant
-import java.util.UUID
+import java.util.*
 
 /**
  * Represents an event message in the Krescent Event Sourcing system.
@@ -21,5 +21,5 @@ data class EventMessage(
     @Serializable(with = InstantSerializer::class)
     val timestamp: Instant = Instant.now(),
     val type: String,
-    val payload: JsonElement
+    val payload: JsonElement,
 )

@@ -1,23 +1,27 @@
 # krescent
 
-This project uses [Gradle](https://gradle.org/).
-To build and run the application, use the *Gradle* tool window by clicking the Gradle icon in the right-hand toolbar,
-or run it directly from the terminal:
+Krescent is a Kotlin library for working with event-sourced systems in an extendable and easy to use and
+slightly opinionated manner.
 
-* Run `./gradlew run` to build and run the application.
-* Run `./gradlew build` to only build the application.
-* Run `./gradlew check` to run all checks, including tests.
-* Run `./gradlew clean` to clean all build outputs.
+The following event sources and projector targets are supported:
 
-Note the usage of the Gradle Wrapper (`./gradlew`).
-This is the suggested way to use Gradle in production projects.
+- KurrentDB (Event Source)
+- MongoDB (Projection, CheckpointStore)
 
-[Learn more about the Gradle Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html).
+## Installation
 
-[Learn more about Gradle tasks](https://docs.gradle.org/current/userguide/command_line_interface.html#common_tasks).
+Add jitpack as a repository in your `build.gradle.kts` file:
 
-This project follows the suggested multi-module setup and consists of the `app` and `utils` subprojects.
-The shared build logic was extracted to a convention plugin located in `buildSrc`.
+```kotlin
+repositories {
+    maven { url = uri("https://jitpack.io") }
+}
+```
 
-This project uses a version catalog (see `gradle/libs.versions.toml`) to declare and version dependencies
-and both a build cache and a configuration cache (see `gradle.properties`).
+Then, add the dependency to your `build.gradle.kts` file:
+
+```kotlin
+dependencies {
+    implementation("com.github.helightdev.krescent:krescent-core:main-SNAPSHOT")
+}
+```

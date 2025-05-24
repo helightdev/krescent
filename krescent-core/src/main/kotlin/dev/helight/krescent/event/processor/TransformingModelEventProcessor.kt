@@ -1,20 +1,17 @@
-package dev.helight.krescent.event
+package dev.helight.krescent.event.processor
 
-import dev.helight.krescent.EventMessage
-import dev.helight.krescent.EventMessageStreamProcessor
-import dev.helight.krescent.EventStreamProcessor
 import dev.helight.krescent.HandlerChainParticipant
-import dev.helight.krescent.StreamingToken
-import dev.helight.krescent.VirtualEventStreamTransformer
+import dev.helight.krescent.event.*
+import dev.helight.krescent.source.StreamingToken
 import java.util.function.Consumer
 
 class TransformingModelEventProcessor<T : StreamingToken<T>>(
-    val catalog: EventCatalog,
-    val virtualEvents: List<Pair<String, VirtualEventStreamTransformer>>,
-    val modelHandler: EventStreamProcessor,
+    catalog: EventCatalog,
+    virtualEvents: List<Pair<String, VirtualEventIngest>>,
+    modelHandler: EventStreamProcessor,
 ) : EventMessageStreamProcessor {
 
-    val virtualStreams = VirtualEventStreamProcessor(virtualEvents, modelHandler)
+    val virtualStreams = VirtualEventEventStreamProcessor(virtualEvents, modelHandler)
     val catalogProcessor = CatalogProcessor(catalog, virtualStreams)
 
     override suspend fun process(
@@ -22,6 +19,9 @@ class TransformingModelEventProcessor<T : StreamingToken<T>>(
         position: StreamingToken<*>,
     ) = catalogProcessor.process(message, position)
 
+    override suspend fun forwardSystemEvent(event: Event) {
+        catalogProcessor.forwardSystemEvent(event)
+    }
 
     override fun accept(visitor: Consumer<HandlerChainParticipant>) {
         super.accept(visitor)

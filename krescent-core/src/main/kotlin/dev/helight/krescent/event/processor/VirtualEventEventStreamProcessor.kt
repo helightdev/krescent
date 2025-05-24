@@ -1,12 +1,13 @@
-package dev.helight.krescent.event
+package dev.helight.krescent.event.processor
 
-import dev.helight.krescent.EventStreamProcessor
 import dev.helight.krescent.HandlerChainParticipant
-import dev.helight.krescent.VirtualEventStreamTransformer
+import dev.helight.krescent.event.Event
+import dev.helight.krescent.event.EventStreamProcessor
+import dev.helight.krescent.event.VirtualEventIngest
 import java.util.function.Consumer
 
-class VirtualEventStreamProcessor(
-    val virtualStreams: List<Pair<String, VirtualEventStreamTransformer>>,
+class VirtualEventEventStreamProcessor(
+    val virtualStreams: List<Pair<String, VirtualEventIngest>>,
     val target: EventStreamProcessor,
 ) : EventStreamProcessor {
 

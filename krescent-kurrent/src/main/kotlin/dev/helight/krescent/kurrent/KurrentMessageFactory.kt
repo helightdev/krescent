@@ -1,6 +1,6 @@
 package dev.helight.krescent.kurrent
 
-import dev.helight.krescent.EventMessage
+import dev.helight.krescent.event.EventMessage
 import io.kurrent.dbclient.EventData
 import io.kurrent.dbclient.EventDataBuilder
 import io.kurrent.dbclient.RecordedEvent
@@ -9,7 +9,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.nio.charset.StandardCharsets
-import java.util.UUID
+import java.util.*
 
 object KurrentMessageFactory {
 

@@ -1,5 +1,6 @@
-package dev.helight.krescent
+package dev.helight.krescent.source
 
+import dev.helight.krescent.event.EventMessage
 import kotlinx.coroutines.flow.Flow
 
 /**
