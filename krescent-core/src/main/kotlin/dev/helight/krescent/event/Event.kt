@@ -4,7 +4,7 @@ import dev.helight.krescent.source.StreamingToken
 import java.time.Instant
 
 abstract class Event {
-    lateinit var metadata: EventMetadata
+    var metadata: EventMetadata? = null
 }
 
 data class EventMetadata(

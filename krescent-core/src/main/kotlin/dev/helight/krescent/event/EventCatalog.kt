@@ -57,9 +57,11 @@ class EventCatalog(
     fun encode(event: Event): EventMessage {
         val eventRegistration = eventTypes[event::class] ?: error("Event type not registered")
         val payload = eventRegistration.unsafeEncode(event)
+        val metadata = event.metadata
+        if (metadata == null) error("Event metadata is null, you can only encode physical events")
         return EventMessage(
-            id = event.metadata.id,
-            timestamp = event.metadata.timestamp,
+            id = metadata.id,
+            timestamp = metadata.timestamp,
             type = eventRegistration.eventName,
             payload = payload
         )

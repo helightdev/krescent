@@ -3,7 +3,7 @@ package dev.helight.krescent.bookstore
 import dev.helight.krescent.checkpoint.ManualCheckpointStrategy
 import dev.helight.krescent.checkpoint.impl.InMemoryCheckpointStorage
 import dev.helight.krescent.models.MemoryProjection.Companion.memoryProjection
-import dev.helight.krescent.models.buildReadModel
+import dev.helight.krescent.models.buildEventModel
 import dev.helight.krescent.source.EventPublisher.Extensions.publishAll
 import dev.helight.krescent.source.impl.InMemoryEventStore
 import kotlinx.coroutines.cancelAndJoin
@@ -30,7 +30,7 @@ class ListedBooksReadModelTest {
             )
         )
         val source = InMemoryEventStore(bookstoreSimulatedEventStream.toMutableList())
-        source.buildReadModel("books.listed", 1, bookstoreEventCatalog) {
+        source.buildEventModel("books.listed", 1, bookstoreEventCatalog) {
             val view by memoryProjection(
                 "projection", buffer,
                 store = { Json.encodeToJsonElement(Snapshot(buffer)) },
@@ -81,7 +81,7 @@ class ListedBooksReadModelTest {
         )
         val source = InMemoryEventStore()
         source.publish(bookstoreSimulatedEventStream[0])
-        val model = source.buildReadModel("books.listed", 1, bookstoreEventCatalog) {
+        val model = source.buildEventModel("books.listed", 1, bookstoreEventCatalog) {
             val view by memoryProjection(
                 "projection", buffer,
                 store = { Json.encodeToJsonElement(Snapshot(buffer)) },
@@ -142,7 +142,7 @@ class ListedBooksReadModelTest {
         )
         val source = InMemoryEventStore()
         source.publish(bookstoreSimulatedEventStream[0])
-        val model = source.buildReadModel("books.listed", 1, bookstoreEventCatalog) {
+        val model = source.buildEventModel("books.listed", 1, bookstoreEventCatalog) {
             val view by memoryProjection(
                 "projection", buffer,
                 store = { Json.encodeToJsonElement(Snapshot(buffer)) },
@@ -210,7 +210,7 @@ class ListedBooksReadModelTest {
         val manualCheckpointStrategy = ManualCheckpointStrategy()
 
         source.publish(bookstoreSimulatedEventStream[0])
-        val model = source.buildReadModel("books.listed", 1, bookstoreEventCatalog) {
+        val model = source.buildEventModel("books.listed", 1, bookstoreEventCatalog) {
             withCheckpoints(checkpointStorage, manualCheckpointStrategy)
 
             val view by memoryProjection(

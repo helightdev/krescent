@@ -17,8 +17,11 @@ interface StreamingEventSource<TOKEN_TYPE : StreamingToken<TOKEN_TYPE>> {
     suspend fun getHeadToken(): TOKEN_TYPE
 
     /**
-     * Gets a token for the tail of the stream, which is *at the position* of the last event in the stream.
+     * Gets a token for the tail of the stream, which is always *at the position* of the last event in the stream.
      * Fetching after the tail token will return no events if no new events are published.
+     *
+     * The exact behavior of the tail token is implementation-dependent. You should not assume it to be an actual
+     * token pointing to the last event, more like a marker indicating the end of the stream.
      */
     suspend fun getTailToken(): TOKEN_TYPE
 

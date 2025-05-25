@@ -14,18 +14,18 @@ import dev.helight.krescent.source.ReplayingEventSourceConsumer
 import dev.helight.krescent.source.StreamingEventSource
 import kotlin.reflect.KProperty
 
-fun StreamingEventSource<*>.buildReadModel(
+fun StreamingEventSource<*>.buildEventModel(
     namespace: String,
     revision: Int,
     catalog: EventCatalog,
-    block: ReadModelBuilder.() -> Unit,
+    block: EventModelBuilder.() -> Unit,
 ): EventSourceConsumer {
-    val builder = ReadModelBuilder(namespace, revision, catalog, this)
+    val builder = EventModelBuilder(namespace, revision, catalog, this)
     builder.block()
     return builder.build()
 }
 
-class ReadModelBuilder(
+class EventModelBuilder(
     val namespace: String,
     val revision: Int,
     val catalog: EventCatalog,
@@ -44,7 +44,6 @@ class ReadModelBuilder(
 
     override fun <T : ModelExtension<*>> registerExtension(extension: T): T {
         if (!extensions.contains(extension)) {
-            println("Registering extension: ${extension::class.simpleName}")
             extensions.add(extension)
             if (extension is CheckpointSupport) checkpointing.add(extension)
         }
