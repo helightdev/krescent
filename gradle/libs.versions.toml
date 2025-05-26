@@ -5,7 +5,7 @@
 [versions]
 kotlin = "2.1.20"
 kotlinxDatetime = "0.6.1"
-kotlinxSerializationJSON = "1.7.3"
+kotlinxSerialization = "1.7.3"
 kotlinxCoroutines = "1.9.0"
 kurrentClient = "1.0.1"
 orgReactiveStream = "1.0.4"
@@ -15,7 +15,8 @@ testContainers = "1.21.0"
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlinxDatetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
-kotlinxSerialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJSON" }
+kotlinxSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+kotlinxSerializationCbor = { module = "org.jetbrains.kotlinx:kotlinx-serialization-cbor", version.ref = "kotlinxSerialization" }
 kotlinxCoroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kurrentClient = { module = "io.kurrent:kurrentdb-client", version.ref = "kurrentClient" }
 orgReactiveStream = { module = "org.reactivestreams:reactive-streams", version.ref = "orgReactiveStream" }
@@ -26,7 +27,7 @@ testContainers = { module = "org.testcontainers:testcontainers", version.ref = "
 
 # Libraries can be bundled together for easier import
 [bundles]
-kotlinxEcosystem = ["kotlinxDatetime", "kotlinxSerialization", "kotlinxCoroutines"]
+kotlinxEcosystem = ["kotlinxDatetime", "kotlinxSerializationJson", "kotlinxSerializationCbor", "kotlinxCoroutines"]
 kurrent = ["kurrentClient", "orgReactiveStream"]
 mongo = ["mongoDriver", "mongoBsonX"]
 testContainers = ["testContainersJunit", "testContainers"]

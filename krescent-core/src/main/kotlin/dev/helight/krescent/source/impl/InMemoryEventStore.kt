@@ -11,11 +11,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromStream
-import kotlinx.serialization.json.encodeToStream
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
+import kotlinx.serialization.cbor.Cbor
+import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.encodeToByteArray
 import java.time.Instant
 
 class InMemoryEventStore(
@@ -69,17 +67,28 @@ class InMemoryEventStore(
         token: StreamingToken<*>?,
         limit: Int?,
     ): Flow<Pair<EventMessage, SequenceToken>> {
+        return internalFetchEventsAfter(token as? SequenceToken, limit, true)
+    }
+
+    private suspend fun internalFetchEventsAfter(
+        token: StreamingToken<*>?,
+        limit: Int?,
+        lock: Boolean,
+    ): Flow<Pair<EventMessage, SequenceToken>> {
         if (token != null && token !is SequenceToken) {
             throw IllegalArgumentException("Token must be of type SequenceToken")
         }
-        val buffer = mutex.withLock {
+        if (lock) mutex.lock()
+        val buffer = try {
             val startIndex = (token ?: getHeadToken()).index + 1
-            events.drop(startIndex).let {
+            events.asSequence().drop(startIndex).let {
                 if (limit == null) it
                 else it.take(limit)
-            }.toList().mapIndexed { index, event ->
+            }.mapIndexed { index, event ->
                 event to SequenceToken(startIndex + index)
-            }
+            }.toList()
+        } finally {
+            if (lock) mutex.unlock()
         }
         return flow {
             buffer.forEach {
@@ -92,8 +101,12 @@ class InMemoryEventStore(
         if (startToken != null && startToken !is SequenceToken) {
             throw IllegalArgumentException("Token must be of type SequenceToken")
         }
+        mutex.lock() // This locks the mutex until both flows are being listened to
         return joinSequentialFlows(
-            fetchEventsAfter(startToken ?: getHeadToken()), eventFlow.asSharedFlow()
+            internalFetchEventsAfter(startToken ?: getHeadToken(), null, false), eventFlow.asSharedFlow(),
+            activateCallback = {
+                mutex.unlock()
+            }
         )
     }
 
@@ -113,19 +126,14 @@ class InMemoryEventStore(
     @OptIn(ExperimentalSerializationApi::class)
     @Suppress("unused")
     suspend fun serialize(): ByteArray = mutex.withLock {
-        ByteArrayOutputStream().use {
-            Json.Default.encodeToStream(SerializedState(events), it)
-            it.toByteArray()
-        }
+        Cbor.encodeToByteArray(SerializedState(events))
     }
 
     @OptIn(ExperimentalSerializationApi::class)
     suspend fun load(data: ByteArray) {
         mutex.withLock {
             events.clear()
-            events.addAll(ByteArrayInputStream(data).use {
-                Json.Default.decodeFromStream<SerializedState>(it)
-            }.events)
+            events.addAll(Cbor.decodeFromByteArray<SerializedState>(data).events)
         }
     }
 

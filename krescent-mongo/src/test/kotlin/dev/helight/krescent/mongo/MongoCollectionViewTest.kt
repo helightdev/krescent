@@ -4,7 +4,6 @@ import com.mongodb.kotlin.client.coroutine.MongoClient
 import dev.helight.krescent.checkpoint.CheckpointBucket
 import dev.helight.krescent.checkpoint.StoredCheckpoint
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.JsonPrimitive
 import org.bson.Document
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -68,7 +67,7 @@ class MongoCollectionViewTest {
             version = "1",
             position = "test-position",
             timestamp = Instant.now(),
-            data = JsonPrimitive("test-data")
+            data = CheckpointBucket()
         )
 
         storage.storeCheckpoint(checkpoint)
@@ -81,7 +80,7 @@ class MongoCollectionViewTest {
             version = "2",
             position = "updated-position",
             timestamp = Instant.now(),
-            data = JsonPrimitive("updated-data")
+            data = CheckpointBucket()
         )
         storage.storeCheckpoint(updatedCheckpoint)
 

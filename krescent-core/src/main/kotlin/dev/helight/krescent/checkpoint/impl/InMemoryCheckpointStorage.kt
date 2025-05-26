@@ -2,9 +2,13 @@ package dev.helight.krescent.checkpoint.impl
 
 import dev.helight.krescent.checkpoint.CheckpointStorage
 import dev.helight.krescent.checkpoint.StoredCheckpoint
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.cbor.Cbor
+import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.encodeToByteArray
 
 /**
  * An in-memory implementation of the `CheckpointStorage` interface used to store and retrieve
@@ -13,16 +17,17 @@ import kotlinx.serialization.json.Json
  */
 class InMemoryCheckpointStorage : CheckpointStorage {
     private val checkpoints = mutableMapOf<String, StoredCheckpoint>()
+    private val mutex = Mutex()
 
-    override suspend fun storeCheckpoint(checkpoint: StoredCheckpoint) {
+    override suspend fun storeCheckpoint(checkpoint: StoredCheckpoint) = mutex.withLock {
         checkpoints[checkpoint.namespace] = checkpoint
     }
 
-    override suspend fun getLatestCheckpoint(namespace: String): StoredCheckpoint? {
+    override suspend fun getLatestCheckpoint(namespace: String): StoredCheckpoint? = mutex.withLock {
         return checkpoints[namespace]
     }
 
-    override suspend fun clearCheckpoints() {
+    override suspend fun clearCheckpoints() = mutex.withLock {
         checkpoints.clear()
     }
 
@@ -32,8 +37,9 @@ class InMemoryCheckpointStorage : CheckpointStorage {
      * @return a ByteArray representation of the serialized checkpoint state.
      */
     @Suppress("unused")
+    @OptIn(ExperimentalSerializationApi::class)
     fun serialize(): ByteArray {
-        return Json.Default.encodeToString(SerializedState(checkpoints)).encodeToByteArray()
+        return Cbor.encodeToByteArray(SerializedState(checkpoints))
     }
 
     /**
@@ -42,8 +48,9 @@ class InMemoryCheckpointStorage : CheckpointStorage {
      *
      * @param data the serialized checkpoint state as a ByteArray.
      */
+    @OptIn(ExperimentalSerializationApi::class)
     fun load(data: ByteArray) {
-        val state = Json.Default.decodeFromString<SerializedState>(data.decodeToString())
+        val state = Cbor.decodeFromByteArray<SerializedState>(data)
         checkpoints.clear()
         checkpoints.putAll(state.checkpoints)
     }

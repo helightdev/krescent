@@ -5,7 +5,6 @@ import dev.helight.krescent.source.EventSourceConsumer
 import dev.helight.krescent.source.EventSourcingStrategy
 import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.source.StreamingToken
-import kotlinx.serialization.json.jsonObject
 import java.time.Instant
 
 class CheckpointingEventSourceConsumer(
@@ -14,32 +13,9 @@ class CheckpointingEventSourceConsumer(
     val checkpointStrategy: CheckpointStrategy,
     val source: StreamingEventSource,
     val checkpointStorage: CheckpointStorage,
-    val additionalCheckpoints: List<CheckpointSupport>,
+    val checkpointSupports: List<CheckpointSupport>,
     val consumer: EventMessageStreamProcessor,
 ) : EventSourceConsumer {
-
-//    override suspend fun stream() {
-//        val lastCheckpoint = loadLastCheckpoint()
-//        val flow = source.streamEvents(lastCheckpoint?.position?.let {
-//            source.deserializeToken(it)
-//        })
-//        handlerLoop(lastCheckpoint, flow)
-//    }
-//
-//    override suspend fun catchup() {
-//        val lastCheckpoint = loadLastCheckpoint()
-//        val flow = source.fetchEventsAfter(lastCheckpoint?.position?.let {
-//            source.deserializeToken(it)
-//        })
-//        handlerLoop(lastCheckpoint, flow)
-//        consumer.forwardSystemEvent(SystemStreamTailEvent)
-//    }
-//
-//    override suspend fun restore() {
-//        val lastCheckpoint = loadLastCheckpoint()
-//        handlerLoop(lastCheckpoint, emptyFlow())
-//        consumer.forwardSystemEvent(SystemStreamTailEvent)
-//    }
 
     @Suppress("UNCHECKED_CAST")
     override suspend fun strategy(strategy: EventSourcingStrategy) {
@@ -92,21 +68,18 @@ class CheckpointingEventSourceConsumer(
 
     private suspend fun checkpoint(position: StreamingToken<*>): StoredCheckpoint {
         val bucket = CheckpointBucket(mutableMapOf())
-        CheckpointSupport.storagePass(consumer, bucket)
-        additionalCheckpoints.forEach { it.createCheckpoint(bucket) }
+        checkpointSupports.forEach { it.createCheckpoint(bucket) }
         return StoredCheckpoint(
             namespace = namespace,
             version = version,
             position = position.serialize(),
             timestamp = Instant.now(),
-            data = bucket.buildJsonObject()
+            data = bucket
         )
     }
 
     private suspend fun load(storedCheckpoint: StoredCheckpoint) {
-        val bucket = CheckpointBucket(storedCheckpoint.data.jsonObject.toMutableMap())
-        additionalCheckpoints.forEach { it.restoreCheckpoint(bucket) }
-        CheckpointSupport.restorePass(consumer, bucket)
+        checkpointSupports.forEach { it.restoreCheckpoint(storedCheckpoint.data) }
     }
 }
 

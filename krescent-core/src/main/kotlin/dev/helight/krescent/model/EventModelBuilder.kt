@@ -86,14 +86,16 @@ class EventModelBuilder(
     internal fun build(): EventModel {
         val handler = this.handler ?: throw IllegalStateException("No event handler configured, please call handler()")
         val virtualEvents = this.virtualEvents.toList()
-        val checkpointing = extensions.filterIsInstance<CheckpointSupport>()
+        val checkpointing = buildList {
+            if (handler is CheckpointSupport) add(handler)
+            addAll(virtualEvents.map { it.second }.filterIsInstance<CheckpointSupport>())
+            addAll(extensions.filterIsInstance<CheckpointSupport>())
+        }
 
         val broadcast = BroadcastEventStreamProcessor(
             buildList {
                 add(handler)
-                extensions.filterIsInstance<EventStreamProcessor>().forEach {
-                    add(it)
-                }
+                addAll(extensions.filterIsInstance<EventStreamProcessor>())
             }
         )
 
@@ -103,7 +105,9 @@ class EventModelBuilder(
             return EventModel(
                 consumer = CheckpointingEventSourceConsumer(
                     namespace = namespace, version = "E${catalog.revision}M${revision}", checkpointStrategy = strategy, source = source,
-                    checkpointStorage = storage, additionalCheckpoints = checkpointing, consumer = consumer
+                    checkpointStorage = storage,
+                    checkpointSupports = checkpointing,
+                    consumer = consumer
                 ),
                 doorstep = consumer
             )
