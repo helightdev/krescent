@@ -3,6 +3,7 @@ package dev.helight.krescent.models
 import dev.helight.krescent.checkpoint.CheckpointBucket
 import dev.helight.krescent.checkpoint.CheckpointSupport
 import dev.helight.krescent.event.Event
+import dev.helight.krescent.event.EventStreamProcessor
 import dev.helight.krescent.event.SystemStreamHeadEvent
 import kotlinx.serialization.json.JsonElement
 
@@ -12,8 +13,9 @@ class MemoryProjection<T>(
     private val store: suspend (T) -> JsonElement,
     private val load: suspend (JsonElement, T) -> Unit,
     private val initialize: suspend () -> Unit = { },
-) : ModelExtension<T>, CheckpointSupport {
-    override suspend fun handleEvent(event: Event) {
+) : ModelExtension<T>, EventStreamProcessor, CheckpointSupport {
+
+    override suspend fun process(event: Event) {
         if (event is SystemStreamHeadEvent) {
             initialize()
         }

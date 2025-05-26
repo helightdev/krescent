@@ -9,6 +9,7 @@ import kotlin.time.Duration
 
 interface CheckpointStrategy {
     suspend fun tick(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean
+    suspend fun tickGracefulTermination(): Boolean = false
 }
 
 @Suppress("unused")

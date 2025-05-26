@@ -7,49 +7,53 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class BookAddedEvent(
-    val bookId: String,
+    override val bookId: String,
     val title: String,
     val author: String,
     val price: Double,
     val copies: Int,
-) : Event()
+) : Event(), BookEvent
 
 @Serializable
 data class BookPriceChangedEvent(
-    val bookId: String,
+    override val bookId: String,
     val price: Double,
-) : Event()
+) : Event(), BookEvent
 
 @Serializable
 data class BookRemovedEvent(
-    val bookId: String,
-) : Event()
+    override val bookId: String,
+) : Event(), BookEvent
 
 @Serializable
 data class BookLentEvent(
-    val bookId: String,
+    override val bookId: String,
     val userId: String,
     val lentDate: String,
-) : Event()
+) : Event(), BookEvent
 
 @Serializable
 data class BookReturnedEvent(
-    val bookId: String,
+    override val bookId: String,
     val userId: String,
     val returnDate: String,
-) : Event()
+) : Event(), BookEvent
 
 @Serializable
 data class BookCopyAddedEvent(
-    val bookId: String,
+    override val bookId: String,
     val copiesAdded: Int,
-) : Event()
+) : Event(), BookEvent
 
 @Serializable
 data class BookCopyRemovedEvent(
-    val bookId: String,
+    override val bookId: String,
     val copiesRemoved: Int,
-) : Event()
+) : Event(), BookEvent
+
+interface BookEvent {
+    val bookId: String
+}
 
 val bookstoreEventCatalog = buildEventCatalog {
     event<BookAddedEvent>("book.added")

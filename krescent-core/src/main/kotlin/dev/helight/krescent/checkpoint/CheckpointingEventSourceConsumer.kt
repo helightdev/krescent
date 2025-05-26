@@ -1,47 +1,76 @@
 package dev.helight.krescent.checkpoint
 
-import dev.helight.krescent.event.EventMessage
-import dev.helight.krescent.event.EventMessageStreamProcessor
-import dev.helight.krescent.event.SystemStreamHeadEvent
-import dev.helight.krescent.event.SystemStreamRestoredEvent
+import dev.helight.krescent.event.*
 import dev.helight.krescent.source.EventSourceConsumer
+import dev.helight.krescent.source.EventSourcingStrategy
 import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.source.StreamingToken
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.serialization.json.jsonObject
 import java.time.Instant
 
 class CheckpointingEventSourceConsumer<T : StreamingToken<T>>(
     val namespace: String,
     val revision: Int,
-    val strategy: CheckpointStrategy,
+    val checkpointStrategy: CheckpointStrategy,
     val source: StreamingEventSource<T>,
     val checkpointStorage: CheckpointStorage,
     val additionalCheckpoints: List<CheckpointSupport>,
     val consumer: EventMessageStreamProcessor,
-) : EventSourceConsumer {
+) : EventSourceConsumer<T> {
 
-    override suspend fun stream() {
-        val lastCheckpoint = loadLastCheckpoint()
-        val flow = source.streamEvents(lastCheckpoint?.position?.let {
+//    override suspend fun stream() {
+//        val lastCheckpoint = loadLastCheckpoint()
+//        val flow = source.streamEvents(lastCheckpoint?.position?.let {
+//            source.deserializeToken(it)
+//        })
+//        handlerLoop(lastCheckpoint, flow)
+//    }
+//
+//    override suspend fun catchup() {
+//        val lastCheckpoint = loadLastCheckpoint()
+//        val flow = source.fetchEventsAfter(lastCheckpoint?.position?.let {
+//            source.deserializeToken(it)
+//        })
+//        handlerLoop(lastCheckpoint, flow)
+//        consumer.forwardSystemEvent(SystemStreamTailEvent)
+//    }
+//
+//    override suspend fun restore() {
+//        val lastCheckpoint = loadLastCheckpoint()
+//        handlerLoop(lastCheckpoint, emptyFlow())
+//        consumer.forwardSystemEvent(SystemStreamTailEvent)
+//    }
+
+    @Suppress("UNCHECKED_CAST")
+    override suspend fun strategy(strategy: EventSourcingStrategy<T>) {
+        var lastCheckpoint = loadLastCheckpoint()
+        var lastPosition: T? = lastCheckpoint?.position?.let {
             source.deserializeToken(it)
+        }
+        strategy.source(source, lastPosition, object : EventMessageStreamProcessor {
+            override suspend fun process(
+                message: EventMessage,
+                position: StreamingToken<*>,
+            ) {
+                consumer.process(message, position)
+                val tickerResult = checkpointStrategy.tick(message, lastCheckpoint)
+                if (tickerResult) {
+                    val checkpoint = checkpoint(position as T)
+                    checkpointStorage.storeCheckpoint(checkpoint)
+                    lastCheckpoint = checkpoint
+                }
+                lastPosition = position as T
+            }
+
+            override suspend fun forwardSystemEvent(event: Event) {
+                consumer.forwardSystemEvent(event)
+            }
         })
-        handlerLoop(lastCheckpoint, flow)
-    }
 
-    override suspend fun catchup() {
-        val lastCheckpoint = loadLastCheckpoint()
-        val flow = source.fetchEventsAfter(lastCheckpoint?.position?.let {
-            source.deserializeToken(it)
-        })
-        handlerLoop(lastCheckpoint, flow)
-    }
-
-    override suspend fun restore() {
-        val lastCheckpoint = loadLastCheckpoint()
-        handlerLoop(lastCheckpoint, emptyFlow())
-
+        if (checkpointStrategy.tickGracefulTermination() && lastPosition != null) {
+            val checkpoint = checkpoint(lastPosition)
+            checkpointStorage.storeCheckpoint(checkpoint)
+        }
     }
 
     private suspend fun loadLastCheckpoint(): StoredCheckpoint? {
@@ -54,25 +83,11 @@ class CheckpointingEventSourceConsumer<T : StreamingToken<T>>(
 
         if (lastCheckpoint != null) {
             load(lastCheckpoint)
-            consumer.forwardSystemEvent(SystemStreamRestoredEvent())
+            consumer.forwardSystemEvent(SystemStreamRestoredEvent)
         } else {
-            consumer.forwardSystemEvent(SystemStreamHeadEvent())
+            consumer.forwardSystemEvent(SystemStreamHeadEvent)
         }
         return lastCheckpoint
-    }
-
-    private suspend fun handlerLoop(checkpoint: StoredCheckpoint?, flow: Flow<Pair<EventMessage, T>>) {
-        var lastCheckpoint = checkpoint
-        flow.collect {
-            val (message, position) = it
-            consumer.process(message, position)
-            val tickerResult = strategy.tick(message, lastCheckpoint)
-            if (tickerResult) {
-                val checkpoint = checkpoint(position)
-                checkpointStorage.storeCheckpoint(checkpoint)
-                lastCheckpoint = checkpoint
-            }
-        }
     }
 
     private suspend fun checkpoint(position: T): StoredCheckpoint {
@@ -93,5 +108,5 @@ class CheckpointingEventSourceConsumer<T : StreamingToken<T>>(
         additionalCheckpoints.forEach { it.restoreCheckpoint(bucket) }
         CheckpointSupport.restorePass(consumer, bucket)
     }
-
 }
+

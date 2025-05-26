@@ -6,25 +6,10 @@ import dev.helight.krescent.event.SystemStreamHeadEvent
 class ReplayingEventSourceConsumer<T : StreamingToken<T>>(
     val source: StreamingEventSource<T>,
     val consumer: EventMessageStreamProcessor,
-) : EventSourceConsumer {
+) : EventSourceConsumer<T> {
 
-    override suspend fun stream() {
-        consumer.forwardSystemEvent(SystemStreamHeadEvent())
-        source.streamEvents(null).collect {
-            val (message, position) = it
-            consumer.process(message, position)
-        }
-    }
-
-    override suspend fun catchup() {
-        consumer.forwardSystemEvent(SystemStreamHeadEvent())
-        source.fetchEventsAfter(null).collect {
-            val (message, position) = it
-            consumer.process(message, position)
-        }
-    }
-
-    override suspend fun restore() {
-        consumer.forwardSystemEvent(SystemStreamHeadEvent())
+    override suspend fun strategy(strategy: EventSourcingStrategy<T>) {
+        consumer.forwardSystemEvent(SystemStreamHeadEvent)
+        strategy.source(source, null, consumer)
     }
 }

@@ -211,7 +211,7 @@ class ListedBooksReadModelTest {
 
         source.publish(bookstoreSimulatedEventStream[0])
         val model = source.buildEventModel("books.listed", 1, bookstoreEventCatalog) {
-            withCheckpoints(checkpointStorage, manualCheckpointStrategy)
+            useCheckpoints(checkpointStorage, manualCheckpointStrategy)
 
             val view by memoryProjection(
                 "projection", buffer,

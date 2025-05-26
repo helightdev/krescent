@@ -7,6 +7,7 @@ import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import dev.helight.krescent.checkpoint.CheckpointBucket
 import dev.helight.krescent.checkpoint.CheckpointSupport
 import dev.helight.krescent.event.Event
+import dev.helight.krescent.event.EventStreamProcessor
 import dev.helight.krescent.event.SystemStreamHeadEvent
 import dev.helight.krescent.models.ExtensionAwareBuilder
 import dev.helight.krescent.models.ModelExtension
@@ -21,7 +22,7 @@ class MongoCollectionProjector(
     val name: String,
     val database: MongoDatabase,
     val checkpointCollectionName: String = "$name-checkpoint",
-) : ModelExtension<MongoCollection<Document>>, CheckpointSupport {
+) : ModelExtension<MongoCollection<Document>>, EventStreamProcessor, CheckpointSupport {
 
     val collection: MongoCollection<Document>
         get() {
@@ -30,7 +31,7 @@ class MongoCollectionProjector(
 
     override fun unpack(): MongoCollection<Document> = collection
 
-    override suspend fun handleEvent(event: Event) {
+    override suspend fun process(event: Event) {
         if (event is SystemStreamHeadEvent) {
             collection.drop()
         }
