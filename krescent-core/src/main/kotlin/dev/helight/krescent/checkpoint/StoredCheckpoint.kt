@@ -8,7 +8,7 @@ import java.time.Instant
 @Serializable
 data class StoredCheckpoint(
     val namespace: String,
-    val revision: Int,
+    val version: String,
     val position: String,
     @Serializable(with = InstantSerializer::class)
     val timestamp: Instant,

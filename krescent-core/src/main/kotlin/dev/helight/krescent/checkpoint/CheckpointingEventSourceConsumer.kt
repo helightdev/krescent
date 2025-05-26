@@ -10,7 +10,7 @@ import java.time.Instant
 
 class CheckpointingEventSourceConsumer<T : StreamingToken<T>>(
     val namespace: String,
-    val revision: Int,
+    val version: String,
     val checkpointStrategy: CheckpointStrategy,
     val source: StreamingEventSource<T>,
     val checkpointStorage: CheckpointStorage,
@@ -77,7 +77,7 @@ class CheckpointingEventSourceConsumer<T : StreamingToken<T>>(
         var lastCheckpoint = checkpointStorage.getLatestCheckpoint(namespace)
 
         // Invalidate outdated checkpoints
-        if (lastCheckpoint != null && lastCheckpoint.revision != revision) {
+        if (lastCheckpoint != null && lastCheckpoint.version != version) {
             lastCheckpoint = null
         }
 
@@ -96,7 +96,7 @@ class CheckpointingEventSourceConsumer<T : StreamingToken<T>>(
         additionalCheckpoints.forEach { it.createCheckpoint(bucket) }
         return StoredCheckpoint(
             namespace = namespace,
-            revision = revision,
+            version = version,
             position = position.serialize(),
             timestamp = Instant.now(),
             data = bucket.buildJsonObject()

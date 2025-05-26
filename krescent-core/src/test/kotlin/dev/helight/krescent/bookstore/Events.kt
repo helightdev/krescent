@@ -55,7 +55,7 @@ interface BookEvent {
     val bookId: String
 }
 
-val bookstoreEventCatalog = buildEventCatalog {
+val bookstoreEventCatalog = buildEventCatalog(1) {
     event<BookAddedEvent>("book.added")
     event<BookPriceChangedEvent>("book.price_changed")
     event<BookRemovedEvent>("book.removed")
@@ -150,3 +150,5 @@ val finalBookStates = mapOf(
         copies = 5
     )
 )
+
+val bookOneEvtCount = 5

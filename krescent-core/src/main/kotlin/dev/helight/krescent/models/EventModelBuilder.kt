@@ -103,7 +103,7 @@ class EventModelBuilder<T : StreamingToken<T>>(
             val (storage, strategy) = checkpointConfig!!
             return EventModel(
                 consumer = CheckpointingEventSourceConsumer(
-                    namespace = namespace, revision = revision, checkpointStrategy = strategy, source = source,
+                    namespace = namespace, version = "E${catalog.revision}M${revision}", checkpointStrategy = strategy, source = source,
                     checkpointStorage = storage, additionalCheckpoints = checkpointing, consumer = consumer
                 ),
                 doorstep = consumer

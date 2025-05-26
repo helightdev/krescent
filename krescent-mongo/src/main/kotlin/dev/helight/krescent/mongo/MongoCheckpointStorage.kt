@@ -38,7 +38,7 @@ class MongoCheckpointStorage(
     private fun checkpointToDocument(checkpoint: StoredCheckpoint): Document {
         return Document().apply {
             put("_id", checkpoint.namespace)
-            put("revision", checkpoint.revision)
+            put("revision", checkpoint.version)
             put("position", checkpoint.position)
             put("timestamp", checkpoint.timestamp)
             put("data", Json.Default.encodeToString(checkpoint.data))
@@ -48,7 +48,7 @@ class MongoCheckpointStorage(
     private fun documentToCheckpoint(document: Document): StoredCheckpoint {
         return StoredCheckpoint(
             namespace = document.getString("_id"),
-            revision = document.getInteger("revision"),
+            version = document.getString("revision"),
             position = document.getString("position"),
             timestamp = document.getDate("timestamp").toInstant(),
             data = Json.Default.decodeFromString(document.getString("data")!!),

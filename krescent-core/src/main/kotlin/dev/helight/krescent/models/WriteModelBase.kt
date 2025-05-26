@@ -98,21 +98,3 @@ abstract class WriteModelBase(
         }
     }
 }
-
-abstract class ReducingWriteModel<S>(
-    namespace: String,
-    revision: Int,
-    catalog: EventCatalog,
-    source: StreamingEventSource<*>,
-    publisher: EventPublisher? = null,
-    configure: suspend EventModelBuilder<*>.() -> Unit = { }
-) : WriteModelBase(namespace, revision, catalog, source, publisher, configure) {
-
-    abstract val initialState: S
-    private var currentState = initialState
-    abstract suspend fun reduce(state: S, event: Event): S
-
-    override suspend fun process(event: Event) {
-         currentState = reduce(currentState, event)
-    }
-}

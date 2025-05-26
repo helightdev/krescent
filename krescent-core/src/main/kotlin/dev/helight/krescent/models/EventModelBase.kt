@@ -26,6 +26,8 @@ abstract class EventModelBase(
         return this.unpack()
     }
 
+    open suspend fun EventModelBuilder<*>.configure() {}
+
     suspend fun build(source: StreamingEventSource<*>): EventModel<*> {
         if (hasBeenBuilt) error("This model instance has already been built once, please create a new instance.")
         hasBeenBuilt = true
@@ -35,6 +37,7 @@ abstract class EventModelBase(
             extensions = extensions.toMutableList()
         )
         configure(builder)
+        builder.configure()
         return builder.build()
     }
 }

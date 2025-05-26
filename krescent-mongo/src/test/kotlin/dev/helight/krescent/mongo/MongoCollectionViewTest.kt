@@ -65,7 +65,7 @@ class MongoCollectionViewTest {
 
         val checkpoint = StoredCheckpoint(
             namespace = testCheckpointNS,
-            revision = 1,
+            version = "1",
             position = "test-position",
             timestamp = Instant.now(),
             data = JsonPrimitive("test-data")
@@ -74,11 +74,11 @@ class MongoCollectionViewTest {
         storage.storeCheckpoint(checkpoint)
         val loadedCheckpoint = storage.getLatestCheckpoint(testCheckpointNS)
         assertEquals(checkpoint.namespace, loadedCheckpoint?.namespace)
-        assertEquals(1, loadedCheckpoint?.revision)
+        assertEquals("1", loadedCheckpoint?.version)
 
         val updatedCheckpoint = StoredCheckpoint(
             namespace = testCheckpointNS,
-            revision = 2,
+            version = "2",
             position = "updated-position",
             timestamp = Instant.now(),
             data = JsonPrimitive("updated-data")
@@ -87,7 +87,7 @@ class MongoCollectionViewTest {
 
         val reloadedCheckpoint = storage.getLatestCheckpoint(testCheckpointNS)
         assertEquals(checkpoint.namespace, reloadedCheckpoint?.namespace)
-        assertEquals(2, reloadedCheckpoint?.revision)
+        assertEquals("2", reloadedCheckpoint?.version)
 
         storage.clearCheckpoints()
         assertNull(storage.getLatestCheckpoint(testCheckpointNS))

@@ -7,13 +7,15 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
 
-fun buildEventCatalog(block: EventCatalogBuilder.() -> Unit): EventCatalog {
-    val builder = EventCatalogBuilder()
+fun buildEventCatalog(revision: Int, block: EventCatalogBuilder.() -> Unit): EventCatalog {
+    val builder = EventCatalogBuilder(revision)
     builder.block()
     return builder.build()
 }
 
-class EventCatalogBuilder {
+class EventCatalogBuilder(
+    val revision: Int
+) {
 
     val registrations: MutableList<EventCatalog.EventRegistration<*>> = mutableListOf()
 
@@ -30,6 +32,7 @@ class EventCatalogBuilder {
         val events = registrations.associateBy { it.eventName }
         val eventTypes = registrations.associateBy { it.type }
         return EventCatalog(
+            revision = revision,
             events = events,
             eventTypes = eventTypes
         )
@@ -37,6 +40,7 @@ class EventCatalogBuilder {
 }
 
 class EventCatalog(
+    val revision: Int,
     val events: Map<String, EventRegistration<*>>,
     val eventTypes: Map<KClass<out Event>, EventRegistration<*>>,
 ) {
