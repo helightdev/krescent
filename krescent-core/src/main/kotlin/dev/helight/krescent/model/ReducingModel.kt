@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package dev.helight.krescent.models
+package dev.helight.krescent.model
 
 import dev.helight.krescent.checkpoint.CheckpointBucket
 import dev.helight.krescent.checkpoint.CheckpointSupport
@@ -59,9 +59,9 @@ abstract class ReducingWriteModel<S: Any>(
     namespace: String,
     revision: Int,
     catalog: EventCatalog,
-    source: StreamingEventSource<*>,
+    source: StreamingEventSource,
     publisher: EventPublisher? = null,
-    configure: suspend EventModelBuilder<*>.() -> Unit = { }
+    configure: suspend EventModelBuilder.() -> Unit = { }
 ) : WriteModelBase(namespace, revision, catalog, source, publisher, configure), ReducingModel<S> {
 
     init {
@@ -78,7 +78,7 @@ abstract class ReducingReadModel<S: Any>(
     namespace: String,
     revision: Int,
     catalog: EventCatalog,
-    configure: suspend EventModelBuilder<*>.() -> Unit = { }
+    configure: suspend EventModelBuilder.() -> Unit = { }
 ) : EventModelBase(namespace, revision, catalog, configure), ReducingModel<S> {
 
     init {

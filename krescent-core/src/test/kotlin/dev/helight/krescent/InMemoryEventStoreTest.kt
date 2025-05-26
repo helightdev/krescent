@@ -27,7 +27,7 @@ class InMemoryEventStoreTest {
 
     @Test
     fun `test token serialization and deserialization`() = runBlocking {
-        val token = InMemoryEventStore.StreamingToken(42)
+        val token = InMemoryEventStore.SequenceToken(42)
         assertEquals("42", token.serialize())
 
         val deserializedToken = eventStore.deserializeToken("42")
@@ -96,11 +96,11 @@ class InMemoryEventStoreTest {
         // Test existing event ID
         val token1 = eventStore.getTokenForEventId("event-1")
         assertNotNull(token1)
-        assertEquals(0, (token1 as InMemoryEventStore.StreamingToken).index)
+        assertEquals(0, (token1 as InMemoryEventStore.SequenceToken).index)
 
         val token2 = eventStore.getTokenForEventId("event-2")
         assertNotNull(token2)
-        assertEquals(1, (token2 as InMemoryEventStore.StreamingToken).index)
+        assertEquals(1, (token2 as InMemoryEventStore.SequenceToken).index)
 
         // Test non-existent event ID
         val tokenNonExistent = eventStore.getTokenForEventId("non-existent")

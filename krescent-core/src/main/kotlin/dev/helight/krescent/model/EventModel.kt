@@ -1,13 +1,12 @@
-package dev.helight.krescent.models
+package dev.helight.krescent.model
 
 import dev.helight.krescent.source.EventSourcingStrategy
 import dev.helight.krescent.event.Event
 import dev.helight.krescent.event.EventMessageStreamProcessor
 import dev.helight.krescent.source.EventSourceConsumer
-import dev.helight.krescent.source.StreamingToken
 
-class EventModel<T: StreamingToken<T>>(
-    val consumer: EventSourceConsumer<T>,
+class EventModel(
+    val consumer: EventSourceConsumer,
     val doorstep: EventMessageStreamProcessor,
 ) {
 
@@ -36,7 +35,7 @@ class EventModel<T: StreamingToken<T>>(
         consumer.restore()
     }
 
-    suspend fun strategy(strategy: EventSourcingStrategy<T>) = runInLifecycle {
+    suspend fun strategy(strategy: EventSourcingStrategy) = runInLifecycle {
         consumer.strategy(strategy)
     }
 

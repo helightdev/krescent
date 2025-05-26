@@ -8,15 +8,15 @@ import dev.helight.krescent.source.StreamingToken
 import kotlinx.serialization.json.jsonObject
 import java.time.Instant
 
-class CheckpointingEventSourceConsumer<T : StreamingToken<T>>(
+class CheckpointingEventSourceConsumer(
     val namespace: String,
     val version: String,
     val checkpointStrategy: CheckpointStrategy,
-    val source: StreamingEventSource<T>,
+    val source: StreamingEventSource,
     val checkpointStorage: CheckpointStorage,
     val additionalCheckpoints: List<CheckpointSupport>,
     val consumer: EventMessageStreamProcessor,
-) : EventSourceConsumer<T> {
+) : EventSourceConsumer {
 
 //    override suspend fun stream() {
 //        val lastCheckpoint = loadLastCheckpoint()
@@ -42,9 +42,9 @@ class CheckpointingEventSourceConsumer<T : StreamingToken<T>>(
 //    }
 
     @Suppress("UNCHECKED_CAST")
-    override suspend fun strategy(strategy: EventSourcingStrategy<T>) {
+    override suspend fun strategy(strategy: EventSourcingStrategy) {
         var lastCheckpoint = loadLastCheckpoint()
-        var lastPosition: T? = lastCheckpoint?.position?.let {
+        var lastPosition: StreamingToken<*>? = lastCheckpoint?.position?.let {
             source.deserializeToken(it)
         }
         strategy.source(source, lastPosition, object : EventMessageStreamProcessor {
@@ -55,11 +55,11 @@ class CheckpointingEventSourceConsumer<T : StreamingToken<T>>(
                 consumer.process(message, position)
                 val tickerResult = checkpointStrategy.tick(message, lastCheckpoint)
                 if (tickerResult) {
-                    val checkpoint = checkpoint(position as T)
+                    val checkpoint = checkpoint(position)
                     checkpointStorage.storeCheckpoint(checkpoint)
                     lastCheckpoint = checkpoint
                 }
-                lastPosition = position as T
+                lastPosition = position
             }
 
             override suspend fun forwardSystemEvent(event: Event) {
@@ -90,7 +90,7 @@ class CheckpointingEventSourceConsumer<T : StreamingToken<T>>(
         return lastCheckpoint
     }
 
-    private suspend fun checkpoint(position: T): StoredCheckpoint {
+    private suspend fun checkpoint(position: StreamingToken<*>): StoredCheckpoint {
         val bucket = CheckpointBucket(mutableMapOf())
         CheckpointSupport.storagePass(consumer, bucket)
         additionalCheckpoints.forEach { it.createCheckpoint(bucket) }

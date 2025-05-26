@@ -4,8 +4,8 @@ import dev.helight.krescent.event.Event
 import dev.helight.krescent.event.EventStreamProcessor
 import dev.helight.krescent.event.SystemHintBeginTransactionEvent
 import dev.helight.krescent.event.SystemHintEndTransactionEvent
-import dev.helight.krescent.models.ExtensionAwareBuilder
-import dev.helight.krescent.models.ModelExtension
+import dev.helight.krescent.model.ExtensionAwareBuilder
+import dev.helight.krescent.model.ModelExtension
 import kotlin.time.Duration
 
 class ModelLockTransactionHandler(

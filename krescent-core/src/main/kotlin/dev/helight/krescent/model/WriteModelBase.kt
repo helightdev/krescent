@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package dev.helight.krescent.models
+package dev.helight.krescent.model
 
 import dev.helight.krescent.event.*
 import dev.helight.krescent.source.*
@@ -11,9 +11,9 @@ abstract class WriteModelBase(
     namespace: String,
     revision: Int,
     catalog: EventCatalog,
-    val source: StreamingEventSource<*>,
+    val source: StreamingEventSource,
     publisher: EventPublisher? = null,
-    configure: suspend EventModelBuilder<*>.() -> Unit = { },
+    configure: suspend EventModelBuilder.() -> Unit = { },
 ) : EventModelBase(
     namespace, revision, catalog, configure
 ) {
@@ -39,20 +39,20 @@ abstract class WriteModelBase(
     }
 
     object Extension {
-        suspend infix fun <T : StreamingToken<T>, M : WriteModelBase> M.handles(
+        suspend infix fun <M : WriteModelBase> M.handles(
             block: suspend M.() -> Unit,
-        ) = handles(CatchupSourcingStrategy<T>(), block)
+        ) = handles(CatchupSourcingStrategy(), block)
 
-        suspend fun <T : StreamingToken<T>, M : WriteModelBase, S> M.handles(
+        suspend fun <M : WriteModelBase, S> M.handles(
             strategy: S,
             block: suspend M.() -> Unit,
-        ) where S: EventSourcingStrategy<T>, S: WriteCompatibleEventSourcingStrategy {
+        ) where S: EventSourcingStrategy, S: WriteCompatibleEventSourcingStrategy {
             strategy.then = {
                 block()
             }
 
             @Suppress("UNCHECKED_CAST")
-            val model = build(source) as EventModel<T>
+            val model = build(source)
             model.strategy(strategy)
         }
     }

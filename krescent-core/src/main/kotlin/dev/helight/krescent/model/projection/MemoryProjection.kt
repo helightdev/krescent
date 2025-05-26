@@ -1,10 +1,12 @@
-package dev.helight.krescent.models
+package dev.helight.krescent.model.projection
 
 import dev.helight.krescent.checkpoint.CheckpointBucket
 import dev.helight.krescent.checkpoint.CheckpointSupport
 import dev.helight.krescent.event.Event
 import dev.helight.krescent.event.EventStreamProcessor
 import dev.helight.krescent.event.SystemStreamHeadEvent
+import dev.helight.krescent.model.ExtensionAwareBuilder
+import dev.helight.krescent.model.ModelExtension
 import kotlinx.serialization.json.JsonElement
 
 class MemoryProjection<T>(

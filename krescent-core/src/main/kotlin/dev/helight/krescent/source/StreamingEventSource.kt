@@ -8,13 +8,13 @@ import java.time.Instant
  * Interface for an event source that provides a replayable stream of events.
  * Supports token-based positioning for fetching events.
  */
-interface StreamingEventSource<TOKEN_TYPE : StreamingToken<TOKEN_TYPE>> {
+interface StreamingEventSource {
 
     /**
      * Gets a token for the head of the stream, which is *before* the first event in the stream.
      * Fetching after the head token will return the first event in the stream.
      */
-    suspend fun getHeadToken(): TOKEN_TYPE
+    suspend fun getHeadToken(): StreamingToken<*>
 
     /**
      * Gets a token for the tail of the stream, which is always *at the position* of the last event in the stream.
@@ -23,21 +23,21 @@ interface StreamingEventSource<TOKEN_TYPE : StreamingToken<TOKEN_TYPE>> {
      * The exact behavior of the tail token is implementation-dependent. You should not assume it to be an actual
      * token pointing to the last event, more like a marker indicating the end of the stream.
      */
-    suspend fun getTailToken(): TOKEN_TYPE
+    suspend fun getTailToken(): StreamingToken<*>
 
     /**
      * Gets a token pointing before the first event at or after the specified timestamp.
      *
      * @param timestamp The timestamp to scan for
      */
-    suspend fun getTokenAtTime(timestamp: Instant): TOKEN_TYPE
+    suspend fun getTokenAtTime(timestamp: Instant): StreamingToken<*>
 
     /**
      * Gets a token for a specific event ID in the stream.
      *
      * @param eventId The event's ID to get a token for
      */
-    suspend fun getTokenForEventId(eventId: String): TOKEN_TYPE?
+    suspend fun getTokenForEventId(eventId: String): StreamingToken<*>?
 
     /**
      * Deserializes the provided encoded string into a Token.
@@ -45,7 +45,7 @@ interface StreamingEventSource<TOKEN_TYPE : StreamingToken<TOKEN_TYPE>> {
      * @param encoded The encoded string representation of a token.
      * @return The deserialized Token instance.
      */
-    suspend fun deserializeToken(encoded: String): TOKEN_TYPE
+    suspend fun deserializeToken(encoded: String): StreamingToken<*>
 
     /**
      * Fetches events after the specified token.
@@ -54,7 +54,7 @@ interface StreamingEventSource<TOKEN_TYPE : StreamingToken<TOKEN_TYPE>> {
      * @param limit Maximum number of events to fetch, null for no limit
      * @return A pair of the flow of events and the updated token for the next fetch
      */
-    suspend fun fetchEventsAfter(token: TOKEN_TYPE? = null, limit: Int? = null): Flow<Pair<EventMessage, TOKEN_TYPE>>
+    suspend fun fetchEventsAfter(token: StreamingToken<*>? = null, limit: Int? = null): Flow<Pair<EventMessage, StreamingToken<*>>>
 
     /**
      * Creates a flow of all events in the stream starting from the specified token.
@@ -63,6 +63,6 @@ interface StreamingEventSource<TOKEN_TYPE : StreamingToken<TOKEN_TYPE>> {
      * @param startToken The token to start from, defaults to head
      * @return A flow of all events
      */
-    suspend fun streamEvents(startToken: TOKEN_TYPE? = null): Flow<Pair<EventMessage, TOKEN_TYPE>>
+    suspend fun streamEvents(startToken: StreamingToken<*>? = null): Flow<Pair<EventMessage, StreamingToken<*>>>
 }
 

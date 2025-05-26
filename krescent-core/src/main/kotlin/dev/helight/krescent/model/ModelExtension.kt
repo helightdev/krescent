@@ -1,4 +1,4 @@
-package dev.helight.krescent.models
+package dev.helight.krescent.model
 
 /**
  * Represents an extension mechanism for a model, like projections or internal stream state management.

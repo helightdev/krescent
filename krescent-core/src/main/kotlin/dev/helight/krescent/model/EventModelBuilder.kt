@@ -1,4 +1,4 @@
-package dev.helight.krescent.models
+package dev.helight.krescent.model
 
 import dev.helight.krescent.checkpoint.CheckpointStorage
 import dev.helight.krescent.checkpoint.CheckpointStrategy
@@ -11,25 +11,24 @@ import dev.helight.krescent.event.processor.BroadcastEventStreamProcessor
 import dev.helight.krescent.event.processor.TransformingModelEventProcessor
 import dev.helight.krescent.source.ReplayingEventSourceConsumer
 import dev.helight.krescent.source.StreamingEventSource
-import dev.helight.krescent.source.StreamingToken
 import kotlin.reflect.KProperty
 
-fun <T : StreamingToken<T>> StreamingEventSource<T>.buildEventModel(
+fun StreamingEventSource.buildEventModel(
     namespace: String,
     revision: Int,
     catalog: EventCatalog,
-    block: EventModelBuilder<T>.() -> Unit,
-): EventModel<T> {
+    block: EventModelBuilder.() -> Unit,
+): EventModel {
     val builder = EventModelBuilder(namespace, revision, catalog, this)
     builder.block()
     return builder.build()
 }
 
-class EventModelBuilder<T : StreamingToken<T>>(
+class EventModelBuilder(
     val namespace: String,
     val revision: Int,
     val catalog: EventCatalog,
-    val source: StreamingEventSource<T>,
+    val source: StreamingEventSource,
     private val extensions: MutableList<ModelExtension<*>> = mutableListOf(),
     private var handler: EventStreamProcessor? = null,
 ) : ExtensionAwareBuilder {
@@ -84,7 +83,7 @@ class EventModelBuilder<T : StreamingToken<T>>(
         checkpointConfig = CheckpointConfiguration(checkpointStorage, strategy)
     }
 
-    internal fun build(): EventModel<T> {
+    internal fun build(): EventModel {
         val handler = this.handler ?: throw IllegalStateException("No event handler configured, please call handler()")
         val virtualEvents = this.virtualEvents.toList()
         val checkpointing = extensions.filterIsInstance<CheckpointSupport>()

@@ -9,8 +9,8 @@ import dev.helight.krescent.checkpoint.CheckpointSupport
 import dev.helight.krescent.event.Event
 import dev.helight.krescent.event.EventStreamProcessor
 import dev.helight.krescent.event.SystemStreamHeadEvent
-import dev.helight.krescent.models.ExtensionAwareBuilder
-import dev.helight.krescent.models.ModelExtension
+import dev.helight.krescent.model.ExtensionAwareBuilder
+import dev.helight.krescent.model.ModelExtension
 import kotlinx.coroutines.flow.count
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json

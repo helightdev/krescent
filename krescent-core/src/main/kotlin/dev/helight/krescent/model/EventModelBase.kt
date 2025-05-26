@@ -1,4 +1,4 @@
-package dev.helight.krescent.models
+package dev.helight.krescent.model
 
 import dev.helight.krescent.event.EventCatalog
 import dev.helight.krescent.event.EventStreamProcessor
@@ -9,7 +9,7 @@ abstract class EventModelBase(
     val namespace: String,
     val revision: Int,
     val catalog: EventCatalog,
-    val configure: suspend EventModelBuilder<*>.() -> Unit = { },
+    val configure: suspend EventModelBuilder.() -> Unit = { },
 ) : ExtensionAwareBuilder, EventStreamProcessor {
 
     internal val extensions = mutableListOf<ModelExtension<*>>()
@@ -26,9 +26,9 @@ abstract class EventModelBase(
         return this.unpack()
     }
 
-    open suspend fun EventModelBuilder<*>.configure() {}
+    open suspend fun EventModelBuilder.configure() {}
 
-    suspend fun build(source: StreamingEventSource<*>): EventModel<*> {
+    suspend fun build(source: StreamingEventSource): EventModel {
         if (hasBeenBuilt) error("This model instance has already been built once, please create a new instance.")
         hasBeenBuilt = true
         val builder = EventModelBuilder(

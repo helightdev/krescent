@@ -18,10 +18,10 @@ import dev.helight.krescent.source.StreamingToken
  * - [SystemHintCommitTransactionEvent] after the tail event.
  * - [SystemHintEndTransactionEvent] at the end of the sourcing.
  */
-class NoSourcingStrategy<T : StreamingToken<T>>: EventSourcingStrategy<T> {
+class NoSourcingStrategy: EventSourcingStrategy {
     override suspend fun source(
-        source: StreamingEventSource<T>,
-        startToken: T?,
+        source: StreamingEventSource,
+        startToken: StreamingToken<*>?,
         consumer: EventMessageStreamProcessor,
     ) {
         consumer.forwardSystemEvent(SystemHintBeginTransactionEvent)

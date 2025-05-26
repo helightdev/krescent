@@ -24,12 +24,12 @@ import dev.helight.krescent.source.WriteCompatibleEventSourcingStrategy
  * - [SystemHintCommitTransactionEvent] after the `then` lambda is executed.
  * - [SystemHintEndTransactionEvent] at the end of the catch-up.
  */
-class CatchupSourcingStrategy<T : StreamingToken<T>>(
+class CatchupSourcingStrategy(
     override var then: suspend () -> Unit = {}
-): EventSourcingStrategy<T>, WriteCompatibleEventSourcingStrategy {
+): EventSourcingStrategy, WriteCompatibleEventSourcingStrategy {
     override suspend fun source(
-        source: StreamingEventSource<T>,
-        startToken: T?,
+        source: StreamingEventSource,
+        startToken: StreamingToken<*>?,
         consumer: EventMessageStreamProcessor,
     ) {
         consumer.forwardSystemEvent(SystemHintBeginTransactionEvent)

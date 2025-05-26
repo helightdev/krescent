@@ -11,10 +11,10 @@ import kotlinx.coroutines.launch
  */
 class ChronoBufferedMergeStreamEventSource private constructor(
     private val delegate: InMemoryEventStore,
-) : StreamingEventSource<InMemoryEventStore.StreamingToken> by delegate {
+) : StreamingEventSource by delegate {
 
     companion object {
-        suspend fun create(sources: List<StreamingEventSource<*>>): ChronoBufferedMergeStreamEventSource =
+        suspend fun create(sources: List<StreamingEventSource>): ChronoBufferedMergeStreamEventSource =
             channelFlow {
                 for (source in sources) {
                     launch {

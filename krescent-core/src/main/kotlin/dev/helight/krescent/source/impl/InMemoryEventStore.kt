@@ -4,6 +4,7 @@ import dev.helight.krescent.event.EventMessage
 import dev.helight.krescent.joinSequentialFlows
 import dev.helight.krescent.source.EventPublisher
 import dev.helight.krescent.source.StreamingEventSource
+import dev.helight.krescent.source.StreamingToken
 import dev.helight.krescent.source.SubscribingEventSource
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
@@ -19,45 +20,45 @@ import java.time.Instant
 
 class InMemoryEventStore(
     private val events: MutableList<EventMessage> = mutableListOf(),
-) : StreamingEventSource<InMemoryEventStore.StreamingToken>, SubscribingEventSource, EventPublisher {
+) : StreamingEventSource, SubscribingEventSource, EventPublisher {
 
     private val mutex = Mutex()
-    private val eventFlow = MutableSharedFlow<Pair<EventMessage, StreamingToken>>(
+    private val eventFlow = MutableSharedFlow<Pair<EventMessage, SequenceToken>>(
         extraBufferCapacity = 255
     )
 
-    data class StreamingToken(val index: Int) : dev.helight.krescent.source.StreamingToken<StreamingToken> {
+    data class SequenceToken(val index: Int) : StreamingToken<SequenceToken> {
         override fun serialize(): String = index.toString()
-        override fun compareTo(other: StreamingToken): Int = index.compareTo(other.index)
+        override fun compareTo(other: SequenceToken): Int = index.compareTo(other.index)
     }
 
-    override suspend fun getHeadToken(): StreamingToken = StreamingToken(-1)
+    override suspend fun getHeadToken(): SequenceToken = SequenceToken(-1)
 
-    override suspend fun getTailToken(): StreamingToken = mutex.withLock {
-        StreamingToken(events.size - 1)
+    override suspend fun getTailToken(): SequenceToken = mutex.withLock {
+        SequenceToken(events.size - 1)
     }
 
-    override suspend fun getTokenAtTime(timestamp: Instant): StreamingToken = mutex.withLock {
+    override suspend fun getTokenAtTime(timestamp: Instant): SequenceToken = mutex.withLock {
         val index = events.indexOfFirst { it.timestamp >= timestamp }
         if (index == -1) {
-            StreamingToken(events.size - 1)
+            SequenceToken(events.size - 1)
         } else {
-            StreamingToken(index - 1)
+            SequenceToken(index - 1)
         }
     }
 
-    override suspend fun getTokenForEventId(eventId: String): StreamingToken? = mutex.withLock {
+    override suspend fun getTokenForEventId(eventId: String): SequenceToken? = mutex.withLock {
         val index = events.indexOfFirst { it.id == eventId }
         if (index == -1) {
             null
         } else {
-            StreamingToken(index)
+            SequenceToken(index)
         }
     }
 
-    override suspend fun deserializeToken(encoded: String): StreamingToken {
+    override suspend fun deserializeToken(encoded: String): SequenceToken {
         return try {
-            StreamingToken(encoded.toInt())
+            SequenceToken(encoded.toInt())
         } catch (_: NumberFormatException) {
             // Default to head if parsing fails
             getHeadToken()
@@ -65,16 +66,19 @@ class InMemoryEventStore(
     }
 
     override suspend fun fetchEventsAfter(
-        token: StreamingToken?,
+        token: StreamingToken<*>?,
         limit: Int?,
-    ): Flow<Pair<EventMessage, StreamingToken>> {
+    ): Flow<Pair<EventMessage, SequenceToken>> {
+        if (token != null && token !is SequenceToken) {
+            throw IllegalArgumentException("Token must be of type SequenceToken")
+        }
         val buffer = mutex.withLock {
             val startIndex = (token ?: getHeadToken()).index + 1
             events.drop(startIndex).let {
                 if (limit == null) it
                 else it.take(limit)
             }.toList().mapIndexed { index, event ->
-                event to StreamingToken(startIndex + index)
+                event to SequenceToken(startIndex + index)
             }
         }
         return flow {
@@ -84,7 +88,10 @@ class InMemoryEventStore(
         }
     }
 
-    override suspend fun streamEvents(startToken: StreamingToken?): Flow<Pair<EventMessage, StreamingToken>> {
+    override suspend fun streamEvents(startToken: StreamingToken<*>?): Flow<Pair<EventMessage, SequenceToken>> {
+        if (startToken != null && startToken !is SequenceToken) {
+            throw IllegalArgumentException("Token must be of type SequenceToken")
+        }
         return joinSequentialFlows(
             fetchEventsAfter(startToken ?: getHeadToken()), eventFlow.asSharedFlow()
         )
@@ -98,7 +105,7 @@ class InMemoryEventStore(
     override suspend fun publish(event: EventMessage) {
         val newToken = mutex.withLock {
             events.add(event)
-            StreamingToken(events.size - 1)
+            SequenceToken(events.size - 1)
         }
         eventFlow.emit(event to newToken)
     }

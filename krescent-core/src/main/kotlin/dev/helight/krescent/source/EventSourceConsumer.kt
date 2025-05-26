@@ -4,7 +4,7 @@ import dev.helight.krescent.source.strategy.CatchupSourcingStrategy
 import dev.helight.krescent.source.strategy.NoSourcingStrategy
 import dev.helight.krescent.source.strategy.StreamingSourcingStrategy
 
-interface EventSourceConsumer<T : StreamingToken<T>> {
+interface EventSourceConsumer {
     /**
      * Streams events continuously from the event source and keeps listening for new events.
      */
@@ -20,5 +20,5 @@ interface EventSourceConsumer<T : StreamingToken<T>> {
      */
     suspend fun restore() = strategy(NoSourcingStrategy())
 
-    suspend fun strategy(strategy: EventSourcingStrategy<T>)
+    suspend fun strategy(strategy: EventSourcingStrategy)
 }

@@ -7,10 +7,10 @@ import dev.helight.krescent.checkpoint.CheckpointStorage
 import dev.helight.krescent.checkpoint.CheckpointStrategy
 import dev.helight.krescent.checkpoint.impl.InMemoryCheckpointStorage
 import dev.helight.krescent.event.Event
-import dev.helight.krescent.models.EventModelBuilder
-import dev.helight.krescent.models.ReducingWriteModel
-import dev.helight.krescent.models.WriteModelBase
-import dev.helight.krescent.models.WriteModelBase.Extension.handles
+import dev.helight.krescent.model.EventModelBuilder
+import dev.helight.krescent.model.ReducingWriteModel
+import dev.helight.krescent.model.WriteModelBase
+import dev.helight.krescent.model.WriteModelBase.Extension.handles
 import dev.helight.krescent.source.impl.InMemoryEventStore
 import dev.helight.krescent.synchronization.KrescentLockProvider
 import dev.helight.krescent.synchronization.LocalSharedLockProvider
@@ -211,7 +211,7 @@ class ReducingBookWriteModel(
     override val initialState: State
         get() = State()
 
-    override suspend fun EventModelBuilder<*>.configure() {
+    override suspend fun EventModelBuilder.configure() {
         if (checkpointStorage != null) useCheckpoints(checkpointStorage, checkpointStrategy)
     }
 

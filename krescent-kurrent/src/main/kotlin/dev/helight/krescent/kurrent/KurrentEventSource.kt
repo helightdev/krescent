@@ -3,6 +3,7 @@ package dev.helight.krescent.kurrent
 import dev.helight.krescent.event.EventMessage
 import dev.helight.krescent.source.EventPublisher
 import dev.helight.krescent.source.StreamingEventSource
+import dev.helight.krescent.source.StreamingToken
 import io.kurrent.dbclient.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
@@ -17,7 +18,7 @@ class KurrentEventSource(
     val streamId: String,
     val credentials: UserCredentials? = null,
     val resolvedLinks: Boolean = false,
-) : StreamingEventSource<KurrentStreamingToken>, EventPublisher {
+) : StreamingEventSource, EventPublisher {
 
     private val sendMutex = Mutex()
 
@@ -46,9 +47,13 @@ class KurrentEventSource(
     }
 
     override suspend fun fetchEventsAfter(
-        token: KurrentStreamingToken?,
+        token: StreamingToken<*>?,
         limit: Int?,
     ): Flow<Pair<EventMessage, KurrentStreamingToken>> {
+        if (token != null && token !is KurrentStreamingToken) {
+            throw IllegalArgumentException("Token must be of type KurrentStreamingToken")
+        }
+
         var readStreamOptions = ReadStreamOptions.get().forwards()
         if (credentials != null) readStreamOptions = readStreamOptions.authenticated(credentials)
         if (limit != null) readStreamOptions.maxCount(limit.toLong())
@@ -72,7 +77,11 @@ class KurrentEventSource(
         }
     }
 
-    override suspend fun streamEvents(startToken: KurrentStreamingToken?): Flow<Pair<EventMessage, KurrentStreamingToken>> {
+    override suspend fun streamEvents(startToken: StreamingToken<*>?): Flow<Pair<EventMessage, KurrentStreamingToken>> {
+        if (startToken != null && startToken !is KurrentStreamingToken) {
+            throw IllegalArgumentException("Token must be of type KurrentStreamingToken")
+        }
+
         val token = startToken ?: getHeadToken()
         var subscribeToStreamOptions = SubscribeToStreamOptions.get()
         if (credentials != null) subscribeToStreamOptions = subscribeToStreamOptions.authenticated(credentials)
