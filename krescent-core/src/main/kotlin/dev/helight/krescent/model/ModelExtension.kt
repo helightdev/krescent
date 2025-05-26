@@ -10,6 +10,8 @@ interface ModelExtension<T> {
      * Unpacks and retrieves the underlying model or value represented by this extension.
      */
     fun unpack(): T
+
+    fun modelCreatedCallback(model: EventModel) {}
 }
 
 /**

@@ -23,4 +23,6 @@ include(":krescent-core")
 include(":krescent-kurrent")
 include(":krescent-mongo")
 
+include(":benchmarks")
+
 rootProject.name = "krescent"

@@ -34,22 +34,22 @@ class MongoCollectionViewTest {
         val client = MongoClient.create(connectionString)
         val database = client.getDatabase("test")
         val view = MongoCollectionProjector("MyReadModel", database)
-        view.collection.drop()
-        view.collection.insertOne(Document().apply {
+        view.drop()
+        view.insertOne(Document().apply {
             put("name", "test")
         })
-        assertEquals(1, view.collection.countDocuments())
+        assertEquals(1, view.lease { countDocuments() })
         val bucket = CheckpointBucket(mutableMapOf())
         view.createCheckpoint(bucket)
-        assertEquals(1, view.collection.countDocuments())
+        assertEquals(1, view.lease { countDocuments() })
 
-        view.collection.insertOne(Document().apply {
+        view.insertOne(Document().apply {
             put("name", "test2")
         })
-        assertEquals(2, view.collection.countDocuments())
+        assertEquals(2, view.lease { countDocuments() })
 
         view.restoreCheckpoint(bucket)
-        assertEquals(1, view.collection.countDocuments())
+        assertEquals(1, view.lease { countDocuments() })
     }
 
 

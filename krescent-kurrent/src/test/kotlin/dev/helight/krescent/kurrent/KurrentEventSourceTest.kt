@@ -2,6 +2,7 @@ package dev.helight.krescent.kurrent
 
 import dev.helight.krescent.bufferInMemory
 import dev.helight.krescent.event.EventMessage
+import dev.helight.krescent.event.logging.ConsoleLoggingEventStreamProcessor.Companion.consoleLog
 import io.kurrent.dbclient.DeleteStreamOptions
 import io.kurrent.dbclient.KurrentDBClient
 import io.kurrent.dbclient.KurrentDBConnectionString
@@ -9,6 +10,7 @@ import io.kurrent.dbclient.UserCredentials
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -17,6 +19,7 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.Duration
 import kotlin.test.Test
+import kotlin.test.assertTrue
 
 @Testcontainers
 class KurrentEventSourceTest {
@@ -58,6 +61,19 @@ class KurrentEventSourceTest {
         }
 
     @Test
+    fun `Fetch Empty Stream`() = runWithTestStream { client, eventSource ->
+        val otherSource = KurrentEventSource(client, "other-stream", testCredentials)
+        val fetched = otherSource.fetchEventsAfter().toList()
+        assertTrue(fetched.isEmpty())
+
+        val job = launch {
+            otherSource.streamEvents().collect { }
+        }
+        delay(100)
+        job.cancel()
+    }
+
+    @Test
     fun `Write and Resolve Events`() = runWithTestStream { client, eventSource ->
         eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
             put("number", 1)
@@ -70,6 +86,7 @@ class KurrentEventSourceTest {
         }))
 
         val events = eventSource.fetchEventsAfter(eventSource.getHeadToken()).toList()
+        events.map { it.first }.consoleLog()
         assertEquals(3, events.size)
     }
 

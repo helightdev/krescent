@@ -1,9 +1,9 @@
 package dev.helight.krescent.model
 
-import dev.helight.krescent.source.EventSourcingStrategy
 import dev.helight.krescent.event.Event
 import dev.helight.krescent.event.EventMessageStreamProcessor
 import dev.helight.krescent.source.EventSourceConsumer
+import dev.helight.krescent.source.EventSourcingStrategy
 
 class EventModel(
     val consumer: EventSourceConsumer,
@@ -32,7 +32,7 @@ class EventModel(
      * Sets the event consumer to its initial state or the last stored checkpoint but doesn't start to resolve events.
      */
     suspend fun restore() = runInLifecycle {
-        consumer.restore()
+        consumer.restoreOnly()
     }
 
     suspend fun strategy(strategy: EventSourcingStrategy) = runInLifecycle {

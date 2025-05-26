@@ -6,6 +6,7 @@ import dev.helight.krescent.checkpoint.CheckpointBucket
 import dev.helight.krescent.checkpoint.CheckpointSupport
 import dev.helight.krescent.event.Event
 import dev.helight.krescent.event.EventCatalog
+import dev.helight.krescent.model.ReducingModel.StateContext
 import dev.helight.krescent.source.EventPublisher
 import dev.helight.krescent.source.StreamingEventSource
 import kotlinx.serialization.json.Json
@@ -16,9 +17,6 @@ interface ReducingModel<S: Any> {
     var currentState: S
 
     suspend fun reduce(state: S, event: Event): S
-    fun <R> useState(block: StateContext<S>.() -> R): R {
-        return block(StateContext(currentState))
-    }
 
     fun S.push(): S {
         currentState = this
@@ -54,6 +52,10 @@ interface ReducingModel<S: Any> {
     }
 }
 
+inline fun <M : ReducingModel<S>, S, R> M.useState(block: StateContext<S>.() -> R): R {
+    return block(StateContext(currentState))
+}
+
 
 abstract class ReducingWriteModel<S: Any>(
     namespace: String,
@@ -78,8 +80,8 @@ abstract class ReducingReadModel<S: Any>(
     namespace: String,
     revision: Int,
     catalog: EventCatalog,
-    configure: suspend EventModelBuilder.() -> Unit = { }
-) : EventModelBase(namespace, revision, catalog, configure), ReducingModel<S> {
+    configure: suspend EventModelBuilder.() -> Unit = { },
+) : ReadModelBase(namespace, revision, catalog, configure), ReducingModel<S> {
 
     init {
         registerExtension(ReducingModel.CheckpointExtension<S>(this))

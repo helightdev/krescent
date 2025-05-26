@@ -11,9 +11,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.cbor.Cbor
-import kotlinx.serialization.decodeFromByteArray
-import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.nio.charset.StandardCharsets
 import java.time.Instant
 
 class InMemoryEventStore(
@@ -126,19 +126,19 @@ class InMemoryEventStore(
     @OptIn(ExperimentalSerializationApi::class)
     @Suppress("unused")
     suspend fun serialize(): ByteArray = mutex.withLock {
-        Cbor.encodeToByteArray(SerializedState(events))
+        Json.encodeToString(SerializedState(events)).toByteArray(StandardCharsets.UTF_8)
     }
 
     @OptIn(ExperimentalSerializationApi::class)
     suspend fun load(data: ByteArray) {
         mutex.withLock {
             events.clear()
-            events.addAll(Cbor.decodeFromByteArray<SerializedState>(data).events)
+            events.addAll(Json.decodeFromString<SerializedState>(data.toString(StandardCharsets.UTF_8)).events)
         }
     }
 
     @Serializable
     data class SerializedState(
-        val events: List<EventMessage>,
+        val events: List<@Serializable() EventMessage>,
     )
 }

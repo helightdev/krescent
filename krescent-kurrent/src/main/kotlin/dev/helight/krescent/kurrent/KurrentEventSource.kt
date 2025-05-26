@@ -63,15 +63,19 @@ class KurrentEventSource(
 
         return channelFlow {
             launch(Dispatchers.IO) {
-                val result = client.readStream(streamId, readStreamOptions).await()
-                for (t in result.events) {
-                    val evt = t.originalEvent
-                    val token = KurrentStreamingToken.RevisionStreamingToken(evt.revision)
-                    val message = KurrentMessageFactory.decode(evt)
-                    // The docs say the revision is exclusive, but in my testing it seems inclusive.
-                    // So we just check if the revision is the same, and if it is, we skip it.
-                    if (startRevision == token.revision) continue
-                    send(message to token)
+                try {
+                    val result = client.readStream(streamId, readStreamOptions).await()
+                    for (t in result.events) {
+                        val evt = t.originalEvent
+                        val token = KurrentStreamingToken.RevisionStreamingToken(evt.revision)
+                        val message = KurrentMessageFactory.decode(evt)
+                        // The docs say the revision is exclusive, but in my testing it seems inclusive.
+                        // So we just check if the revision is the same, and if it is, we skip it.
+                        if (startRevision == token.revision) continue
+                        send(message to token)
+                    }
+                } catch (_: StreamNotFoundException) {
+                    // If the stream does not exist, we just return an empty flow.
                 }
             }.join()
         }
@@ -104,6 +108,10 @@ class KurrentEventSource(
                             send(message to token)
                         }
                     }
+
+                    override fun onCancelled(subscription: Subscription, exception: Throwable) {
+                        cancel("Subscription error", exception)
+                    }
                 }, subscribeToStreamOptions).await()
                 try {
                     delay(Long.MAX_VALUE)
@@ -116,13 +124,19 @@ class KurrentEventSource(
 
     override suspend fun publish(event: EventMessage): Unit = coroutineScope {
         sendMutex.withLock {
-            launch(Dispatchers.IO) {
-                val eventData = KurrentMessageFactory.encode(event)
-                var appendOptions = AppendToStreamOptions.get().streamState(StreamState.AnyStreamState())
-                if (credentials != null) appendOptions = appendOptions.authenticated(credentials)
+            val eventData = KurrentMessageFactory.encode(event)
+            var appendOptions = AppendToStreamOptions.get().streamState(StreamState.AnyStreamState())
+            if (credentials != null) appendOptions = appendOptions.authenticated(credentials)
+            client.appendToStream(streamId, appendOptions, eventData).await()
+        }
+    }
 
-                client.appendToStream(streamId, appendOptions, eventData).await()
-            }.join()
+    override suspend fun publishAll(events: List<EventMessage>) {
+        sendMutex.withLock {
+            val eventData = events.map { KurrentMessageFactory.encode(it) }
+            var appendOptions = AppendToStreamOptions.get().streamState(StreamState.AnyStreamState())
+            if (credentials != null) appendOptions = appendOptions.authenticated(credentials)
+            client.appendToStream(streamId, appendOptions, *eventData.toTypedArray()).await()
         }
     }
 }

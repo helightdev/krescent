@@ -100,25 +100,36 @@ class EventModelBuilder(
         )
 
         val consumer = TransformingModelEventProcessor(catalog, virtualEvents, broadcast)
-        if (checkpointConfig != null) {
-            val (storage, strategy) = checkpointConfig!!
-            return EventModel(
-                consumer = CheckpointingEventSourceConsumer(
-                    namespace = namespace, version = "E${catalog.revision}M${revision}", checkpointStrategy = strategy, source = source,
-                    checkpointStorage = storage,
-                    checkpointSupports = checkpointing,
-                    consumer = consumer
-                ),
-                doorstep = consumer
-            )
-        } else {
-            return EventModel(
-                consumer = ReplayingEventSourceConsumer(
-                    source = source, consumer = consumer
-                ),
-                doorstep = consumer
-            )
+        val model = when {
+            checkpointConfig != null -> {
+                val (storage, strategy) = checkpointConfig!!
+                EventModel(
+                    consumer = CheckpointingEventSourceConsumer(
+                        namespace = namespace,
+                        version = "E${catalog.revision}M${revision}",
+                        checkpointStrategy = strategy,
+                        source = source,
+                        checkpointStorage = storage,
+                        checkpointSupports = checkpointing,
+                        consumer = consumer
+                    ),
+                    doorstep = consumer
+                )
+            }
+
+            else -> {
+                EventModel(
+                    consumer = ReplayingEventSourceConsumer(
+                        source = source, consumer = consumer
+                    ),
+                    doorstep = consumer
+                )
+            }
         }
+        extensions.forEach {
+            it.modelCreatedCallback(model)
+        }
+        return model
     }
 
     private data class CheckpointConfiguration(

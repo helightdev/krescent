@@ -1,40 +1,98 @@
 package dev.helight.krescent.mongo
 
 import com.mongodb.MongoNamespace
-import com.mongodb.client.model.RenameCollectionOptions
+import com.mongodb.client.model.*
 import com.mongodb.kotlin.client.coroutine.MongoCollection
 import com.mongodb.kotlin.client.coroutine.MongoDatabase
 import dev.helight.krescent.checkpoint.CheckpointBucket
 import dev.helight.krescent.checkpoint.CheckpointSupport
-import dev.helight.krescent.event.Event
-import dev.helight.krescent.event.EventStreamProcessor
-import dev.helight.krescent.event.SystemStreamHeadEvent
+import dev.helight.krescent.event.*
 import dev.helight.krescent.model.ExtensionAwareBuilder
 import dev.helight.krescent.model.ModelExtension
 import kotlinx.coroutines.flow.count
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import org.bson.Document
+import org.bson.conversions.Bson
 
 class MongoCollectionProjector(
     val name: String,
     val database: MongoDatabase,
     val checkpointCollectionName: String = "$name-checkpoint",
-) : ModelExtension<MongoCollection<Document>>, EventStreamProcessor, CheckpointSupport {
+    val allowBatching: Boolean = false,
+    val maxBatchSize: Int = 100,
+) : ModelExtension<MongoCollectionProjector>, EventStreamProcessor, CheckpointSupport {
 
-    val collection: MongoCollection<Document>
+    private val collection: MongoCollection<Document>
         get() {
             return database.getCollection<Document>(name)
         }
 
-    override fun unpack(): MongoCollection<Document> = collection
+    private var isBatching = false
+    private val batchBuffer = mutableListOf<WriteModel<Document>>()
+    private val mutex = Mutex()
 
-    override suspend fun process(event: Event) {
-        if (event is SystemStreamHeadEvent) {
-            collection.drop()
+    override fun unpack(): MongoCollectionProjector = this
+
+    override suspend fun process(event: Event) = when {
+        event is SystemStreamHeadEvent -> collection.drop()
+        event is SystemStreamCatchUpEvent && allowBatching -> isBatching = true
+        event is SystemStreamCaughtUpEvent && isBatching -> {
+            isBatching = false
+            unsafeCommitBatch()
         }
+
+        else -> {}
+    }
+
+    private suspend fun unsafeCommitBatch() {
+        if (batchBuffer.isEmpty()) return
+        collection.bulkWrite(batchBuffer.toList(), BulkWriteOptions().ordered(true))
+        batchBuffer.clear()
+    }
+
+    private suspend fun addToBatch(model: WriteModel<Document>) {
+        batchBuffer.add(model)
+        val hasReachedMaxSize = batchBuffer.size >= maxBatchSize
+        if (hasReachedMaxSize) unsafeCommitBatch()
+    }
+
+    suspend fun insertOne(document: Document) = mutex.withLock {
+        if (isBatching) addToBatch(InsertOneModel(document))
+        else collection.insertOne(document)
+    }
+
+    suspend fun updateOne(filter: Bson, update: Bson) = mutex.withLock {
+        if (isBatching) addToBatch(UpdateOneModel(filter, update))
+        else collection.updateOne(filter, update)
+    }
+
+    suspend fun updateMany(filter: Bson, update: Bson) = mutex.withLock {
+        if (isBatching) addToBatch(UpdateManyModel(filter, update))
+        else collection.updateMany(filter, update)
+    }
+
+    suspend fun deleteOne(filter: Bson) = mutex.withLock {
+        if (isBatching) addToBatch(DeleteOneModel(filter))
+        else collection.deleteOne(filter)
+    }
+
+    suspend fun drop() = mutex.withLock {
+        batchBuffer.clear()
+        collection.drop()
+    }
+
+    suspend fun <R> lease(block: suspend MongoCollection<Document>.() -> R): R = mutex.withLock {
+        unsafeCommitBatch()
+        block(collection)
+    }
+
+    suspend fun commitBatch() = mutex.withLock {
+        unsafeCommitBatch()
     }
 
     private suspend fun loadFromCollection(sourceCollection: String) {
@@ -89,9 +147,14 @@ class MongoCollectionProjector(
             name: String,
             database: MongoDatabase,
             checkpointCollectionName: String = "$name-checkpoint",
-        ): MongoCollectionProjector {
-            return registerExtension(MongoCollectionProjector(name, database, checkpointCollectionName))
-        }
+            allowBatching: Boolean = false,
+            maxBatchSize: Int = 100,
+        ): MongoCollectionProjector = registerExtension(
+            MongoCollectionProjector(
+                name, database, checkpointCollectionName,
+                allowBatching, maxBatchSize
+            )
+        )
     }
 }
 

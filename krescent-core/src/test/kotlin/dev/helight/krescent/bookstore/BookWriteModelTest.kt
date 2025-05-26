@@ -11,6 +11,7 @@ import dev.helight.krescent.model.EventModelBuilder
 import dev.helight.krescent.model.ReducingWriteModel
 import dev.helight.krescent.model.WriteModelBase
 import dev.helight.krescent.model.WriteModelBase.Extension.handles
+import dev.helight.krescent.model.useState
 import dev.helight.krescent.source.impl.InMemoryEventStore
 import dev.helight.krescent.synchronization.KrescentLockProvider
 import dev.helight.krescent.synchronization.LocalSharedLockProvider
@@ -100,6 +101,7 @@ class BookWriteModelTest {
         val lockProvider = LocalSharedLockProvider()
         val stream = InMemoryEventStore(bookstoreSimulatedEventStream.toMutableList())
         val storage = InMemoryCheckpointStorage()
+        ReducingBookWriteModel("1", lockProvider, stream)
 
         ReducingBookWriteModel("1", lockProvider, stream, storage).apply {
             build(stream).catchup()
@@ -168,25 +170,25 @@ class BookWriteModel(
         }
     }
 
-    fun lend(userId: String) {
+    suspend fun lend(userId: String) {
         if (canBeLent(1)) error("Not book available to be lent.")
         emitEvent(BookLentEvent(bookId, userId, "2025-1-1"))
         available--
     }
 
-    fun returnBook(userId: String) {
+    suspend fun returnBook(userId: String) {
         // Just don't check if this user actually borrowed the book
         emitEvent(BookReturnedEvent(bookId, userId, "2025-1-1"))
         available++
     }
 
-    fun removeCopies(count: Int) {
+    suspend fun removeCopies(count: Int) {
         if (available < count) error("Not enough copies available to remove.")
         emitEvent(BookCopyRemovedEvent(bookId, count))
         available -= count
     }
 
-    fun addCopies(count: Int) {
+    suspend fun addCopies(count: Int) {
         emitEvent(BookCopyAddedEvent(bookId, count))
         available += count
     }
@@ -254,25 +256,25 @@ class ReducingBookWriteModel(
         }
     }
 
-    fun lend(userId: String) = useState {
+    suspend fun lend(userId: String) = useState {
         if (canBeLent(1)) error("Not book available to be lent.")
         emitEvent(BookLentEvent(bookId, userId, "2025-1-1"))
         state.copy(available = state.available - 1).push()
     }
 
-    fun returnBook(userId: String) = useState {
+    suspend fun returnBook(userId: String) = useState {
         // Just don't check if this user actually borrowed the book
         emitEvent(BookReturnedEvent(bookId, userId, "2025-1-1"))
         state.copy(available = state.available + 1).push()
     }
 
-    fun removeCopies(count: Int) = useState {
+    suspend fun removeCopies(count: Int) = useState {
         if (state.available < count) error("Not enough copies available to remove.")
         emitEvent(BookCopyRemovedEvent(bookId, count))
         state.copy(available = state.available - count).push()
     }
 
-    fun addCopies(count: Int) = useState {
+    suspend fun addCopies(count: Int) = useState {
         emitEvent(BookCopyAddedEvent(bookId, count))
         state.copy(available = state.available + count).push()
     }

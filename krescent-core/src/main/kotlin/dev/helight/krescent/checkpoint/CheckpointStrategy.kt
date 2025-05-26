@@ -4,7 +4,7 @@ import dev.helight.krescent.event.EventMessage
 import java.time.Instant
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
-import kotlin.concurrent.atomics.fetchAndIncrement
+import kotlin.concurrent.atomics.incrementAndFetch
 import kotlin.time.Duration
 
 interface CheckpointStrategy {
@@ -28,7 +28,7 @@ class FixedEventRateCheckpointStrategy(
     private val counter = AtomicLong(0)
 
     override suspend fun tick(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
-        return counter.fetchAndIncrement() % checkpoint == 0L
+        return counter.incrementAndFetch() % checkpoint == 0L
     }
 }
 

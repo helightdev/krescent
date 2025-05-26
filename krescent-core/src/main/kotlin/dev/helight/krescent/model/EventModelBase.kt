@@ -6,12 +6,13 @@ import dev.helight.krescent.source.StreamingEventSource
 import kotlin.reflect.KProperty
 
 abstract class EventModelBase(
-    val namespace: String,
-    val revision: Int,
+    private val namespace: String,
+    private val revision: Int,
     val catalog: EventCatalog,
-    val configure: suspend EventModelBuilder.() -> Unit = { },
+    private val configure: suspend EventModelBuilder.() -> Unit = { },
 ) : ExtensionAwareBuilder, EventStreamProcessor {
 
+    internal val fluentConfigurators = mutableListOf<suspend EventModelBuilder.() -> Unit>()
     internal val extensions = mutableListOf<ModelExtension<*>>()
     private var hasBeenBuilt = false
 
@@ -38,6 +39,21 @@ abstract class EventModelBase(
         )
         configure(builder)
         builder.configure()
+        for (postConfiguration in fluentConfigurators) {
+            builder.postConfiguration()
+        }
         return builder.build()
     }
+
+    object Extension {
+
+        fun <M : EventModelBase> M.withConfiguration(
+            block: suspend EventModelBuilder.() -> Unit,
+        ): M {
+            fluentConfigurators.add { block() }
+            return this
+        }
+
+    }
 }
+

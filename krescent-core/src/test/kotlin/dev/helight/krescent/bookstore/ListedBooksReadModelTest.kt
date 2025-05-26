@@ -2,9 +2,8 @@ package dev.helight.krescent.bookstore
 
 import dev.helight.krescent.checkpoint.ManualCheckpointStrategy
 import dev.helight.krescent.checkpoint.impl.InMemoryCheckpointStorage
-import dev.helight.krescent.model.projection.MemoryProjection.Companion.memoryProjection
 import dev.helight.krescent.model.buildEventModel
-import dev.helight.krescent.source.EventPublisher.Extensions.publishAll
+import dev.helight.krescent.model.projection.MemoryProjection.Companion.memoryProjection
 import dev.helight.krescent.source.impl.InMemoryEventStore
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay

@@ -15,12 +15,11 @@ interface EventPublisher {
      */
     suspend fun publish(event: EventMessage)
 
-
-    object Extensions {
-        suspend fun EventPublisher.publishAll(events: List<EventMessage>) {
-            events.forEach { event ->
-                publish(event)
-            }
+    suspend fun publishAll(events: List<EventMessage>) {
+        events.forEach { event ->
+            publish(event)
         }
     }
+
+    object Extensions
 }

@@ -49,7 +49,10 @@ class CheckpointBucket(
     }
 
     operator fun set(key: String, value: JsonElement) = put(key, value)
+    operator fun set(key: String, value: BucketValue) = buffer.put(key, value)
     operator fun get(key: String): JsonElement? = getJsonElement(key)
+
+    fun getValue(key: String): BucketValue? = buffer[key]
 
     fun put(key: String, value: String) {
         buffer[key] = BucketValue.StringValue(value)
@@ -91,16 +94,16 @@ class CheckpointBucket(
         it as? BucketValue.JsonValue ?: error("Element with key '$key' is not a JsonValue, found: $it")
     }?.value
 
-    fun encodeToJsonObject(): JsonElement = Json.encodeToJsonElement(buffer)
-    fun encodeToJsonString(): String = Json.encodeToString(buffer)
-    fun encodeToByteArray(): ByteArray = Cbor.encodeToByteArray(buffer)
+    fun encodeToJsonObject(): JsonElement = Json.encodeToJsonElement(this)
+    fun encodeToJsonString(): String = Json.encodeToString(this)
+    fun encodeToByteArray(): ByteArray = Cbor.encodeToByteArray(this)
 
     override fun toString(): String = "CheckpointBucket{buffer=$buffer}"
 
     companion object {
-        fun fromJsonObject(json: JsonObject): CheckpointBucket = Json.decodeFromJsonElement(json)
-        fun fromJsonString(json: String): CheckpointBucket = Json.decodeFromString(json)
-        fun fromByteArray(data: ByteArray): CheckpointBucket = Cbor.decodeFromByteArray(data)
+        fun fromJsonObject(json: JsonObject): CheckpointBucket = Json.decodeFromJsonElement<CheckpointBucket>(json)
+        fun fromJsonString(json: String): CheckpointBucket = Json.decodeFromString<CheckpointBucket>(json)
+        fun fromByteArray(data: ByteArray): CheckpointBucket = Cbor.decodeFromByteArray<CheckpointBucket>(data)
     }
 
 }

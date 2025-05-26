@@ -15,10 +15,12 @@ interface EventSourceConsumer {
      */
     suspend fun catchup() = strategy(CatchupSourcingStrategy())
 
+    suspend fun twoPhaseCatchup() = strategy(CatchupSourcingStrategy())
+
     /**
      * Sets the event consumer to its initial state or the last stored checkpoint but doesn't start to resolve events.
      */
-    suspend fun restore() = strategy(NoSourcingStrategy())
+    suspend fun restoreOnly() = strategy(NoSourcingStrategy())
 
     suspend fun strategy(strategy: EventSourcingStrategy)
 }

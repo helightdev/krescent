@@ -1,10 +1,6 @@
 package dev.helight.krescent.source.strategy
 
-import dev.helight.krescent.event.EventMessageStreamProcessor
-import dev.helight.krescent.event.SystemHintBeginTransactionEvent
-import dev.helight.krescent.event.SystemHintCommitTransactionEvent
-import dev.helight.krescent.event.SystemHintEndTransactionEvent
-import dev.helight.krescent.event.SystemStreamTailEvent
+import dev.helight.krescent.event.*
 import dev.helight.krescent.source.EventSourcingStrategy
 import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.source.StreamingToken
@@ -23,6 +19,8 @@ import dev.helight.krescent.source.WriteCompatibleEventSourcingStrategy
  * - [SystemStreamTailEvent] after all events have been sourced.
  * - [SystemHintCommitTransactionEvent] after the `then` lambda is executed.
  * - [SystemHintEndTransactionEvent] at the end of the catch-up.
+ * - [SystemStreamCatchUpEvent] at the start of the catch-up, after the transaction hint.
+ * - [SystemStreamCaughtUpEvent] after the catch-up is completed.
  */
 class CatchupSourcingStrategy(
     override var then: suspend () -> Unit = {}
@@ -33,11 +31,13 @@ class CatchupSourcingStrategy(
         consumer: EventMessageStreamProcessor,
     ) {
         consumer.forwardSystemEvent(SystemHintBeginTransactionEvent)
+        consumer.forwardSystemEvent(SystemStreamCatchUpEvent)
         try {
             source.fetchEventsAfter(startToken).collect {
                 it.forwardTo(consumer)
             }
             consumer.forwardSystemEvent(SystemStreamTailEvent)
+            consumer.forwardSystemEvent(SystemStreamCaughtUpEvent)
             then()
             consumer.forwardSystemEvent(SystemHintCommitTransactionEvent)
         } finally {

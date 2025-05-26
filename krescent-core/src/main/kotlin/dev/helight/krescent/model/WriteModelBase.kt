@@ -3,30 +3,30 @@
 package dev.helight.krescent.model
 
 import dev.helight.krescent.event.*
-import dev.helight.krescent.source.*
-import dev.helight.krescent.source.EventPublisher.Extensions.publishAll
+import dev.helight.krescent.source.EventPublisher
+import dev.helight.krescent.source.EventSourcingStrategy
+import dev.helight.krescent.source.StreamingEventSource
+import dev.helight.krescent.source.WriteCompatibleEventSourcingStrategy
 import dev.helight.krescent.source.strategy.CatchupSourcingStrategy
 
 abstract class WriteModelBase(
     namespace: String,
     revision: Int,
     catalog: EventCatalog,
-    val source: StreamingEventSource,
-    publisher: EventPublisher? = null,
+    var source: StreamingEventSource? = null,
+    var publisher: EventPublisher? = null,
     configure: suspend EventModelBuilder.() -> Unit = { },
 ) : EventModelBase(
     namespace, revision, catalog, configure
 ) {
-    private val writeExtension by registerExtension(WriteModelExtension(
-        eventPublisher = publisher,
-    ))
+    private val writeExtension by registerExtension(WriteModelExtension())
 
     /**
      * Emits an event to the WriteModel's event queue.
      * The events will be emitted on the next commit.
      */
-    fun emitEvent(event: Event) {
-        writeExtension.eventQueue.add(event)
+    suspend fun emitEvent(event: Event) {
+        writeExtension.enqueueEvent(event)
     }
 
     /**
@@ -39,6 +39,20 @@ abstract class WriteModelBase(
     }
 
     object Extension {
+        fun <M : WriteModelBase> M.withSource(
+            source: StreamingEventSource,
+        ): M {
+            this.source = source
+            return this
+        }
+
+        fun <M : WriteModelBase> M.withPublisher(
+            publisher: EventPublisher,
+        ): M {
+            this.publisher = publisher
+            return this
+        }
+
         suspend infix fun <M : WriteModelBase> M.handles(
             block: suspend M.() -> Unit,
         ) = handles(CatchupSourcingStrategy(), block)
@@ -47,29 +61,41 @@ abstract class WriteModelBase(
             strategy: S,
             block: suspend M.() -> Unit,
         ) where S: EventSourcingStrategy, S: WriteCompatibleEventSourcingStrategy {
+            val finalizedSource = source
+            if (finalizedSource == null) {
+                error("WriteModelBase must have a source configured before using handles()")
+            }
+
             strategy.then = {
                 block()
             }
 
             @Suppress("UNCHECKED_CAST")
-            val model = build(source)
+            val model = build(finalizedSource)
             model.strategy(strategy)
         }
     }
 
-    private inner class WriteModelExtension(
-        val eventPublisher: EventPublisher? = null,
-    ) : ModelExtension<WriteModelExtension>, EventStreamProcessor {
-
+    private inner class WriteModelExtension() : ModelExtension<WriteModelExtension>, EventStreamProcessor {
+        var model: EventModel? = null
         val eventQueue: ArrayDeque<Event> = ArrayDeque()
 
         val resolvedPublisher: EventPublisher
-            get() = eventPublisher ?: source.let {
+            get() = publisher ?: source.let {
                 it as? EventPublisher
             }
             ?: error("No event publisher configured, please provide one or use a source that implements EventPublisher.")
 
         override fun unpack() = this
+
+        override fun modelCreatedCallback(model: EventModel) {
+            this.model = model
+        }
+
+        suspend fun enqueueEvent(event: Event) {
+            eventQueue.add(event)
+            model!!.emitSystemEvent(SystemEmittedEvent(event))
+        }
 
         suspend fun commitEvents() {
             if (eventQueue.isEmpty()) return
