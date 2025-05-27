@@ -9,6 +9,9 @@ hero:
     - theme: brand
       text: Getting Started
       link: /guide/installation
+  image:
+    src: /logo.png
+    alt: Krescent logo
 
 features:
   - icon: 🚀
