@@ -11,6 +11,7 @@ import dev.helight.krescent.model.EventModelBuilder
 import dev.helight.krescent.model.ReducingWriteModel
 import dev.helight.krescent.model.WriteModelBase
 import dev.helight.krescent.model.WriteModelBase.Extension.handles
+import dev.helight.krescent.model.WriteModelBase.Extension.withSource
 import dev.helight.krescent.model.useState
 import dev.helight.krescent.source.impl.InMemoryEventStore
 import dev.helight.krescent.synchronization.KrescentLockProvider
@@ -33,7 +34,7 @@ class BookWriteModelTest {
     fun `Test reconstruction of a simple write model`() = runBlocking {
         val lockProvider = LocalSharedLockProvider()
         val stream = InMemoryEventStore(bookstoreSimulatedEventStream.toMutableList())
-        BookWriteModel("1", lockProvider, stream) handles {
+        BookWriteModel("1", lockProvider).withSource(stream) handles {
             assertTrue(canBeLent(1))
             assertTrue(canBeLent(9))
             assertFalse(canBeLent(10))
@@ -44,18 +45,18 @@ class BookWriteModelTest {
     fun `Test multiple writes using write models`(): Unit = runBlocking {
         val lockProvider = LocalSharedLockProvider()
         val stream = InMemoryEventStore(bookstoreSimulatedEventStream.toMutableList())
-        BookWriteModel("1", lockProvider, stream) handles {
+        BookWriteModel("1", lockProvider).withSource(stream) handles {
             removeCopies(4)
         }
-        BookWriteModel("1", lockProvider, stream) handles {
+        BookWriteModel("1", lockProvider).withSource(stream) handles {
             removeCopies(4)
         }
         assertThrows<Throwable> {
-            BookWriteModel("1", lockProvider, stream) handles {
+            BookWriteModel("1", lockProvider).withSource(stream) handles {
                 removeCopies(4)
             }
         }
-        BookWriteModel("1", lockProvider, stream) handles {
+        BookWriteModel("1", lockProvider).withSource(stream) handles {
             assertEquals(1, available)
         }
     }
@@ -68,7 +69,7 @@ class BookWriteModelTest {
 
         suspend fun racingFun(lockProvider: KrescentLockProvider): Boolean {
             var wasWellBehaved = true
-            BookWriteModel("1", lockProvider, stream) handles {
+            BookWriteModel("1", lockProvider).withSource(stream) handles {
                 if (isWriting) {
                     wasWellBehaved = false
                 }
@@ -149,23 +150,20 @@ class BookWriteModelTest {
 class BookWriteModel(
     val bookId: String,
     val lockProvider: KrescentLockProvider,
-    source: InMemoryEventStore,
-) : WriteModelBase("test", 1, bookstoreEventCatalog, source, configure = {
+) : WriteModelBase("book_write", 1, bookstoreEventCatalog, configure = {
     useTransaction(lockProvider, "book-$bookId")
 }) {
 
     var book: BookState? = null
     var available: Int = 0
 
+
     override suspend fun process(event: Event) {
         if (event !is BookEvent || event.bookId != bookId) return
         when (event) {
             is BookAddedEvent -> {
                 book = BookState(
-                    title = event.title,
-                    author = event.author,
-                    price = event.price,
-                    copies = event.copies
+                    title = event.title, author = event.author, price = event.price, copies = event.copies
                 )
                 available = event.copies
             }
@@ -247,17 +245,12 @@ class ReducingBookWriteModel(
         return when (event) {
             is BookAddedEvent -> state.copy(
                 book = BookState(
-                    title = event.title,
-                    author = event.author,
-                    price = event.price,
-                    copies = event.copies
-                ),
-                available = event.copies
+                    title = event.title, author = event.author, price = event.price, copies = event.copies
+                ), available = event.copies
             )
 
             is BookRemovedEvent -> state.copy(
-                book = null,
-                available = 0
+                book = null, available = 0
             )
 
             is BookPriceChangedEvent -> state.copy(
@@ -307,8 +300,7 @@ class ReducingBookWriteModel(
         if (state.book != null) error("Book already exists.")
         emitEvent(BookAddedEvent(bookId, title, author, price, copies))
         state.copy(
-            book = BookState(title, author, price, copies),
-            available = copies
+            book = BookState(title, author, price, copies), available = copies
         ).push()
     }
 

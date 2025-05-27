@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitepress'
+import {defineConfig} from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -29,25 +29,17 @@ export default defineConfig({
         text: 'Concepts',
         items: [
           { text: 'Events', link: '/concepts/events' },
-          { text: 'Event Catalog', link: '/concepts/event-catalog' },
-          { text: 'Event Stream Processing', link: '/concepts/event-stream-processing' },
-          { text: 'Event Sources', link: '/concepts/event-sources' },
-          { text: 'Event Sourcing Strategies', link: '/concepts/event-sourcing-strategies' },
-          { text: 'Event Models', link: '/concepts/event-models' },
-          { text: 'Checkpointing', link: '/concepts/checkpointing' }
+          {text: 'Checkpointing', link: '/concepts/checkpointing'},
+          {text: 'Models', link: '/concepts/models'}
         ]
       },
       {
         text: 'Guide',
         items: [
           { text: 'Installation', link: '/guide/installation' },
-          { text: 'Getting Started', link: '/guide/getting-started' },
-          { text: 'Creating Event Models', link: '/guide/creating-event-models' },
-          { text: 'Working with Event Sources', link: '/guide/working-with-event-sources' }
         ]
       }
     ],
-
     socialLinks: [
       { icon: 'github', link: 'https://github.com/helightdev/krescent' }
     ]

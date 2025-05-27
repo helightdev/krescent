@@ -70,30 +70,32 @@ abstract class WriteModelBase(
          * Triggers a catch-up for this [WriteModelBase] and executed the provided block inside the
          * transactional boundaries of this [WriteModelBase], if enforced.
          */
-        suspend infix fun <M : WriteModelBase> M.handles(
-            block: suspend M.() -> Unit,
+        suspend infix fun <M : WriteModelBase, R> M.handles(
+            block: suspend M.() -> R,
         ) = handles(CatchupSourcingStrategy(), block)
 
         /**
          * Triggers the sourcing operation defined by [strategy] for this [WriteModelBase] inside the
          * transactional boundaries of this [WriteModelBase], if enforced.
          */
-        suspend fun <M : WriteModelBase, S> M.handles(
+        suspend fun <M : WriteModelBase, S, R> M.handles(
             strategy: S,
-            block: suspend M.() -> Unit,
-        ) where S: EventSourcingStrategy, S: WriteCompatibleEventSourcingStrategy {
+            block: suspend M.() -> R,
+        ): R where S : EventSourcingStrategy, S : WriteCompatibleEventSourcingStrategy {
             val finalizedSource = source
             if (finalizedSource == null) {
                 error("WriteModelBase must have a source configured before using handles()")
             }
 
+            var result: R? = null
             strategy.then = {
-                block()
+                result = block()
             }
 
             @Suppress("UNCHECKED_CAST")
             val model = build(finalizedSource)
             model.strategy(strategy)
+            return result!!
         }
     }
 
