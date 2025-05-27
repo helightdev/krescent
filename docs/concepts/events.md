@@ -42,7 +42,7 @@ interface BookEvent {
 ## Event Catalog
 
 Physical events must be registered in one or more `EventCatalog` instances. The `EventCatalog` is responsible for
-defining and maneging known event types, their serialization and deserialization for the event processing pipeline.
+defining and managing known event types, their serialization and deserialization for the event processing pipeline.
 
 The catalog also defines the type identifier for each event. Naming usually follows domain-based `domain.event`
 naming conventions where the type starts with the namespace of the domain and then ends with the event name.
