@@ -97,7 +97,7 @@ class MongoCollectionProjector(
         unsafeCommitBatch()
     }
 
-    private suspend fun loadFromCollection(sourceCollection: String) = mutex.withLock {
+    private suspend fun loadFromCollection(sourceCollection: String) {
         val fromCollection = database.getCollection<Document>(sourceCollection)
         fromCollection.renameCollection(
             MongoNamespace(
@@ -108,7 +108,7 @@ class MongoCollectionProjector(
         exportToCollection(sourceCollection)
     }
 
-    private suspend fun exportToCollection(targetName: String): Int = mutex.withLock {
+    private suspend fun exportToCollection(targetName: String): Int {
         database.getCollection<Document>(targetName).drop()
         val documentCount = collection.aggregate(
             listOf(
@@ -119,7 +119,7 @@ class MongoCollectionProjector(
         return documentCount
     }
 
-    override suspend fun createCheckpoint(bucket: CheckpointBucket) {
+    override suspend fun createCheckpoint(bucket: CheckpointBucket) = mutex.withLock {
         val collectionSize = exportToCollection(checkpointCollectionName)
         bucket[name] = Json.encodeToJsonElement(
             SnapshotData(
@@ -129,7 +129,7 @@ class MongoCollectionProjector(
         )
     }
 
-    override suspend fun restoreCheckpoint(bucket: CheckpointBucket) {
+    override suspend fun restoreCheckpoint(bucket: CheckpointBucket) = mutex.withLock {
         val (collection, size) = Json.decodeFromJsonElement<SnapshotData>(bucket[name]!!)
         if (collection != checkpointCollectionName) error("Checkpoint collection name mismatch, expected $checkpointCollectionName but got $collection")
         val actualSize = database.getCollection<Document>(collection).countDocuments().toInt()

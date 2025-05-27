@@ -47,7 +47,6 @@ class MongoCollectionViewTest {
             put("name", "test2")
         })
         assertEquals(2, view.lease { countDocuments() })
-
         view.restoreCheckpoint(bucket)
         assertEquals(1, view.lease { countDocuments() })
     }
