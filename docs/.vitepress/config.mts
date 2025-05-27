@@ -29,8 +29,8 @@ export default defineConfig({
         text: 'Concepts',
         items: [
           { text: 'Events', link: '/concepts/events' },
-          {text: 'Checkpointing', link: '/concepts/checkpointing'},
-          {text: 'Models', link: '/concepts/models'}
+          {text: 'Models', link: '/concepts/models'},
+          {text: 'Checkpointing', link: '/concepts/checkpointing'}
         ]
       },
       {
