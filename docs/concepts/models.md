@@ -3,7 +3,8 @@ title: Models
 ---
 
 Models in Krescent are the core components of the framework yet relatively loosely defined. In essence, they are
-end-user flavored event handlers with additional syntactic sugar. While there is base `EventModelBase`, you will mostly
+end-user flavored event handlers with additional syntactic sugar. While there is a base `EventModelBase`, you will
+mostly
 be using flavors of the `ReadModelBase` and the `WriteModelBase` classes, so let's take a look at them.
 
 ## Read Model
@@ -91,8 +92,8 @@ entity id or related entity ids, similar to [Dynamic Consistency Boundaries](htt
 #### Example Write Model
 
 ```kotlin
+// [!code focus:8]
 class BookWriteModel(
-    // [!code focus:8]
     val bookId: String,
     val lockProvider: KrescentLockProvider,
 ) : WriteModelBase("book_write", 1, bookstoreEventCatalog, configure = {
