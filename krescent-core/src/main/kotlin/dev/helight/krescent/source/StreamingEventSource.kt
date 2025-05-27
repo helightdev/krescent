@@ -26,20 +26,6 @@ interface StreamingEventSource {
     suspend fun getTailToken(): StreamingToken<*>
 
     /**
-     * Gets a token pointing before the first event at or after the specified timestamp.
-     *
-     * @param timestamp The timestamp to scan for
-     */
-    suspend fun getTokenAtTime(timestamp: Instant): StreamingToken<*>
-
-    /**
-     * Gets a token for a specific event ID in the stream.
-     *
-     * @param eventId The event's ID to get a token for
-     */
-    suspend fun getTokenForEventId(eventId: String): StreamingToken<*>?
-
-    /**
      * Deserializes the provided encoded string into a Token.
      *
      * @param encoded The encoded string representation of a token.
@@ -66,3 +52,19 @@ interface StreamingEventSource {
     suspend fun streamEvents(startToken: StreamingToken<*>? = null): Flow<Pair<EventMessage, StreamingToken<*>>>
 }
 
+interface ExtendedQueryableStreamingEventSource : StreamingEventSource {
+    /**
+     * Gets a token pointing before the first event at or after the specified timestamp.
+     *
+     * @param timestamp The timestamp to scan for
+     */
+    suspend fun getTokenAtTime(timestamp: Instant): StreamingToken<*>
+
+    /**
+     * Gets a token for a specific event ID in the stream.
+     *
+     * @param eventId The event's ID to get a token for
+     */
+    suspend fun getTokenForEventId(eventId: String): StreamingToken<*>?
+
+}

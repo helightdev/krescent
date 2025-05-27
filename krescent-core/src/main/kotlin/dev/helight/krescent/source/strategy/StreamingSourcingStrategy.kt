@@ -1,8 +1,6 @@
 package dev.helight.krescent.source.strategy
 
-import dev.helight.krescent.event.EventMessageStreamProcessor
-import dev.helight.krescent.event.SystemStreamCatchUpEvent
-import dev.helight.krescent.event.SystemStreamCaughtUpEvent
+import dev.helight.krescent.event.*
 import dev.helight.krescent.source.EventSourcingStrategy
 import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.source.StreamingToken
@@ -12,9 +10,15 @@ import dev.helight.krescent.source.StreamingToken
  * and is designed for continuous event processing in read models. Before the live stream begins, an initial catch-up
  * is performed to generate catchup events.
  *
+ * This strategy does not really support transactions in the same way as other strategies, as it is designed
+ * for continuous streaming of events. However, it will still emit the transaction hints around the catch-up phase, so
+ * you can locally prevent multiple read models from replaying at the same time.
+ *
  * **Emitted system events**:
  * - [SystemStreamCatchUpEvent] at the start of the catch-up.
  * - [SystemStreamCaughtUpEvent] after the catch-up is completed, before the live stream starts.
+ * - [SystemHintBeginTransactionEvent] at the start of the catch-up phase.
+ * - [SystemHintEndTransactionEvent] at the end of the catch-up phase, after the live stream has started.
  */
 class StreamingSourcingStrategy: EventSourcingStrategy {
     override suspend fun source(
@@ -23,13 +27,20 @@ class StreamingSourcingStrategy: EventSourcingStrategy {
         consumer: EventMessageStreamProcessor,
     ) {
         var lastToken: StreamingToken<*>? = startToken
-        consumer.forwardSystemEvent(SystemStreamCatchUpEvent)
-        source.fetchEventsAfter(lastToken).collect { (message, position) ->
-            consumer.process(message, position)
-            lastToken = position
+        consumer.forwardSystemEvent(SystemHintBeginTransactionEvent)
+        try {
+            consumer.forwardSystemEvent(SystemStreamCatchUpEvent)
+            source.fetchEventsAfter(lastToken).collect { (message, position) ->
+                consumer.process(message, position)
+                lastToken = position
+            }
+            consumer.forwardSystemEvent(SystemStreamCaughtUpEvent)
+        } finally {
+            consumer.forwardSystemEvent(SystemHintEndTransactionEvent)
         }
-        consumer.forwardSystemEvent(SystemStreamCaughtUpEvent)
 
+
+        // Begin streaming events until interrupted
         source.streamEvents(lastToken).collect {
             it.forwardTo(consumer)
         }

@@ -82,3 +82,30 @@ fun <T> joinSequentialFlows(
     }
     secondJob.join()
 }
+
+/**
+ * Runs a sequence of tasks where each task is executed in order without interruption due to exceptions.
+ * If any task throws an exception, it collects all exceptions and throws a single `UninterruptedChainException` with a list of errors.
+ *
+ * @param tasks A list of suspending tasks to be executed. Each task is represented as a suspendable unit function.
+ * If any task throws an exception, it is caught and stored for reporting.
+ */
+suspend fun runUninterruptedChain(
+    tasks: List<suspend () -> Unit>,
+) {
+    val errorBuffer = mutableListOf<Throwable>()
+    for (task in tasks) {
+        try {
+            task()
+        } catch (e: Throwable) {
+            errorBuffer.add(e)
+        }
+    }
+    if (errorBuffer.isNotEmpty()) throw UninterruptedChainException(errorBuffer)
+}
+
+class UninterruptedChainException(
+    errors: List<Throwable>,
+) : RuntimeException(
+    "Uninterrupted chain failed with ${errors.size} errors: ${errors.joinToString("\n") { it.message ?: "Unknown error" }}"
+)

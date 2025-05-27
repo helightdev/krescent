@@ -7,6 +7,7 @@ import io.kurrent.dbclient.SubscribeToStreamOptions
 sealed class KurrentStreamingToken() : StreamingToken<KurrentStreamingToken> {
 
     override fun serialize(): String {
+        // Doesn't follow the kurrentdb token format, since our interpretation of head and tail is different
         return when (this) {
             is HeadStreamingToken -> "HEAD"
             is TailStreamingToken -> "TAIL"

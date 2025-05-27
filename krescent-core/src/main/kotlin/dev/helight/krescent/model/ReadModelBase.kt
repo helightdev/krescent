@@ -7,6 +7,9 @@ import dev.helight.krescent.source.strategy.CatchupSourcingStrategy
 import dev.helight.krescent.source.strategy.NoSourcingStrategy
 import dev.helight.krescent.source.strategy.StreamingSourcingStrategy
 
+/**
+ * Base class for read models that provides common extension functions.
+ */
 abstract class ReadModelBase(
     namespace: String,
     revision: Int,

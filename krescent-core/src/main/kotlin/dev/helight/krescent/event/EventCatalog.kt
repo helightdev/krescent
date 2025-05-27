@@ -7,6 +7,12 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
 
+/**
+ * Builds an [EventCatalog] with the given revision.
+ *
+ * The revision is used to track breaking changes in the event catalog, changing the revision will invalidate
+ * checkpoints of all dependent models.
+ */
 fun buildEventCatalog(revision: Int, block: EventCatalogBuilder.() -> Unit): EventCatalog {
     val builder = EventCatalogBuilder(revision)
     builder.block()
@@ -19,6 +25,11 @@ class EventCatalogBuilder(
 
     val registrations: MutableList<EventCatalog.EventRegistration<*>> = mutableListOf()
 
+    /**
+     * Registers an event of type [T] with the given [name].
+     *
+     * @param T The type of the event. Must be a subclass of [Event] and serializable using kotlinx.serialization.
+     */
     inline fun <reified T : Event> event(name: String) {
         val registration = EventCatalog.EventRegistration(
             type = T::class,
@@ -28,7 +39,7 @@ class EventCatalogBuilder(
         registrations.add(registration)
     }
 
-    fun build(): EventCatalog {
+    internal fun build(): EventCatalog {
         val events = registrations.associateBy { it.eventName }
         val eventTypes = registrations.associateBy { it.type }
         return EventCatalog(
@@ -44,7 +55,7 @@ class EventCatalog(
     val events: Map<String, EventRegistration<*>>,
     val eventTypes: Map<KClass<out Event>, EventRegistration<*>>,
 ) {
-    fun decode(message: EventMessage, position: StreamingToken<*>?): Event? {
+    fun decode(message: EventMessage, position: StreamingToken<*>): Event? {
         val type = message.type
         val eventRegistration = events[type] ?: return null
         val evt = Json.Default.decodeFromJsonElement(eventRegistration.serializer, message.payload)

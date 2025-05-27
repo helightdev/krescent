@@ -13,6 +13,12 @@ import dev.helight.krescent.source.ReplayingEventSourceConsumer
 import dev.helight.krescent.source.StreamingEventSource
 import kotlin.reflect.KProperty
 
+/**
+ * Functional DSL to build an [EventModel] from a [StreamingEventSource].
+ *
+ * Class-based alternatives are available with [EventModelBase] and [ReducingModel] and their
+ * read/write variants.
+ */
 fun StreamingEventSource.buildEventModel(
     namespace: String,
     revision: Int,
@@ -40,6 +46,12 @@ class EventModelBuilder(
         return this.unpack()
     }
 
+    /**
+     * Registers an extension for the model.
+     *
+     * @param extension The [ModelExtension] to register.
+     * @return The registered extension.
+     */
     override fun <T : ModelExtension<*>> registerExtension(extension: T): T {
         if (!extensions.contains(extension)) {
             extensions.add(extension)

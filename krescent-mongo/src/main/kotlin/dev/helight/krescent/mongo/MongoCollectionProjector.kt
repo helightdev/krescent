@@ -19,6 +19,9 @@ import kotlinx.serialization.json.encodeToJsonElement
 import org.bson.Document
 import org.bson.conversions.Bson
 
+/**
+ * A MongoDB collection projector that supports batching and checkpointing.
+ */
 class MongoCollectionProjector(
     val name: String,
     val database: MongoDatabase,
@@ -28,9 +31,7 @@ class MongoCollectionProjector(
 ) : ModelExtension<MongoCollectionProjector>, EventStreamProcessor, CheckpointSupport {
 
     private val collection: MongoCollection<Document>
-        get() {
-            return database.getCollection<Document>(name)
-        }
+            by lazy { database.getCollection<Document>(name) }
 
     private var isBatching = false
     private val batchBuffer = mutableListOf<WriteModel<Document>>()
@@ -40,12 +41,13 @@ class MongoCollectionProjector(
 
     override suspend fun process(event: Event) = when {
         event is SystemStreamHeadEvent -> collection.drop()
-        event is SystemStreamCatchUpEvent && allowBatching -> isBatching = true
+        event is SystemStreamCatchUpEvent && allowBatching -> {
+            isBatching = true
+        }
         event is SystemStreamCaughtUpEvent && isBatching -> {
             isBatching = false
             unsafeCommitBatch()
         }
-
         else -> {}
     }
 
@@ -95,7 +97,7 @@ class MongoCollectionProjector(
         unsafeCommitBatch()
     }
 
-    private suspend fun loadFromCollection(sourceCollection: String) {
+    private suspend fun loadFromCollection(sourceCollection: String) = mutex.withLock {
         val fromCollection = database.getCollection<Document>(sourceCollection)
         fromCollection.renameCollection(
             MongoNamespace(
@@ -106,7 +108,7 @@ class MongoCollectionProjector(
         exportToCollection(sourceCollection)
     }
 
-    private suspend fun exportToCollection(targetName: String): Int {
+    private suspend fun exportToCollection(targetName: String): Int = mutex.withLock {
         database.getCollection<Document>(targetName).drop()
         val documentCount = collection.aggregate(
             listOf(
@@ -142,8 +144,24 @@ class MongoCollectionProjector(
     )
 
     companion object {
-        @Suppress("unused")
-        fun ExtensionAwareBuilder.mongoCollectionProjector(
+
+        /**
+         * Creates a [MongoCollectionProjector] and registers it with the [ExtensionAwareBuilder].
+         *
+         * [dev.helight.krescent.mongo.MongoCollectionProjector] is a wrapper around a MongoDB collection that supports
+         * batching and checkpointing. Checkpoints are created by exporting the collection to a separate checkpoint
+         * collection, which can be restored later by overriding the working collection using a dropping rename operation.
+         *
+         * By default, write operations are not batched since it may introduce additional points of failure but
+         * can be turned on when write performance is creating a bottleneck.
+         *
+         * @param name The name of the projector, which is also used as the collection name in MongoDB.
+         * @param database The MongoDB database to use.
+         * @param checkpointCollectionName The name of the checkpoint collection, defaults to `"$name-checkpoint"`.
+         * @param allowBatching Whether to allow batching of events, defaults to false.
+         * @param maxBatchSize The maximum size of a batch, defaults to 100.
+         */
+        fun ExtensionAwareBuilder.mongoCollectionProjection(
             name: String,
             database: MongoDatabase,
             checkpointCollectionName: String = "$name-checkpoint",

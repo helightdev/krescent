@@ -14,11 +14,10 @@ class CatalogProcessor(
         message: EventMessage,
         position: StreamingToken<*>,
     ) {
-        val event = catalog.decode(message, position)
-        if (event == null) {
-            println("Failed to decode event: ${message.type}")
-            return
-        }
+        val event = catalog.decode(message, position) ?: SystemUnhandledEventMessageEvent(
+            message = message,
+            position = position,
+        )
         consumer.process(event)
     }
 

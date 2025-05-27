@@ -6,8 +6,8 @@ import dev.helight.krescent.event.Event
 import dev.helight.krescent.event.buildEventCatalog
 import dev.helight.krescent.model.ReadModelBase
 import dev.helight.krescent.model.projection.MemoryMapBuffer
-import dev.helight.krescent.model.projection.StateMemoryProjection.Companion.mapMemoryProjection
-import dev.helight.krescent.mongo.MongoCollectionProjector.Companion.mongoCollectionProjector
+import dev.helight.krescent.model.projection.StateMemoryProjector.Companion.mapMemoryProjection
+import dev.helight.krescent.mongo.MongoCollectionProjector.Companion.mongoCollectionProjection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
@@ -133,7 +133,7 @@ class AllDocumentsReadModelMongo(
     "documents.all-documents", 1, documentEventCatalog,
 ) {
 
-    val projection by mongoCollectionProjector(collectionName, database, allowBatching = true)
+    val projection by mongoCollectionProjection(collectionName, database, allowBatching = true)
 
     override suspend fun process(event: Event) {
         when (event) {

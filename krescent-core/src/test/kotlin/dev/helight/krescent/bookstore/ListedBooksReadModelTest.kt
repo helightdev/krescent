@@ -3,7 +3,7 @@ package dev.helight.krescent.bookstore
 import dev.helight.krescent.checkpoint.ManualCheckpointStrategy
 import dev.helight.krescent.checkpoint.impl.InMemoryCheckpointStorage
 import dev.helight.krescent.model.buildEventModel
-import dev.helight.krescent.model.projection.MemoryProjection.Companion.memoryProjection
+import dev.helight.krescent.model.projection.MemoryProjector.Companion.memoryProjection
 import dev.helight.krescent.source.impl.InMemoryEventStore
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -68,7 +68,7 @@ class ListedBooksReadModelTest {
     }
 
     @Test
-    fun `Test catchup delayed`() = runBlocking {
+    fun `Test delayed catchup receives new elements`() = runBlocking {
         val buffer = mutableMapOf<String, BookState>()
         buffer.put(
             "3", BookState(
@@ -129,7 +129,7 @@ class ListedBooksReadModelTest {
 
 
     @Test
-    fun `Test streamed`() = runBlocking {
+    fun `Test streamed event source working as expected`() = runBlocking {
         val buffer = mutableMapOf<String, BookState>()
         buffer.put(
             "3", BookState(
@@ -194,7 +194,7 @@ class ListedBooksReadModelTest {
     }
 
     @Test
-    fun `Test with Checkpoints`() = runBlocking {
+    fun `Test function based event model catchup with checkpoints`() = runBlocking {
         val buffer = mutableMapOf<String, BookState>()
         buffer.put(
             "3", BookState(

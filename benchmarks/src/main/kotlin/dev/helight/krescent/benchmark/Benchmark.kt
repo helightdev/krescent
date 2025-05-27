@@ -70,12 +70,12 @@ fun main() = runBlocking {
             println("Published batch ${i + 1}/${count / 500} of ${it.size} events to KurrentDB")
         }
     }
-    println("Published $count events to KurrentDB, checking replay...")
-    val kurrentDurationReplay = computeAverageTime(2) {
-        AllDocumentsReadModel(buffer).catchup(kurrentSource)
-    }
-    println("Replayed $count events from KurrentDB in $kurrentDurationReplay ms (End buffer size: ${buffer.size})")
-    printStats("KurrentDB", count, kurrentDurationReplay)
+//    println("Published $count events to KurrentDB, checking replay...")
+//    val kurrentDurationReplay = computeAverageTime(2) {
+//        AllDocumentsReadModel(buffer).catchup(kurrentSource)
+//    }
+//    println("Replayed $count events from KurrentDB in $kurrentDurationReplay ms (End buffer size: ${buffer.size})")
+//    printStats("KurrentDB", count, kurrentDurationReplay)
 
     val mongoClient = MongoClient.create("mongodb://root:example@localhost:27017/")
     val mongoDatabase = mongoClient.getDatabase("test")

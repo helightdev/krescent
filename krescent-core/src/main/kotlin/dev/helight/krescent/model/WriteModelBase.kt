@@ -9,6 +9,10 @@ import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.source.WriteCompatibleEventSourcingStrategy
 import dev.helight.krescent.source.strategy.CatchupSourcingStrategy
 
+/**
+ * Base class for writing models that provides common extension functions and implements event publication
+ * and commit handling.
+ */
 abstract class WriteModelBase(
     namespace: String,
     revision: Int,
@@ -22,8 +26,10 @@ abstract class WriteModelBase(
     private val writeExtension by registerExtension(WriteModelExtension())
 
     /**
-     * Emits an event to the WriteModel's event queue.
-     * The events will be emitted on the next commit.
+     * Emits an event to the WriteModel's event queue which will be published with the next commit.
+     *
+     * For all default event sourcing strategies, this model will not receive emitted events in its current
+     * lifecycle. Therefore, you must manually update the internal state of the writing model when emitting events.
      */
     suspend fun emitEvent(event: Event) {
         writeExtension.enqueueEvent(event)
@@ -31,7 +37,7 @@ abstract class WriteModelBase(
 
     /**
      * Manually commits all events that have been emitted to the WriteModel's event queue.
-     * By default, events are committed automatically when receiving a [dev.helight.krescent.event.SystemHintCommitTransactionEvent]
+     * By default, events are committed automatically when receiving a [SystemHintCommitTransactionEvent]
      * that is sent by transaction handling sourcing strategies.
      */
     suspend fun commitEvents() {
@@ -39,6 +45,10 @@ abstract class WriteModelBase(
     }
 
     object Extension {
+
+        /**
+         * Overrides the source of this [WriteModelBase] with the provided [StreamingEventSource].
+         */
         fun <M : WriteModelBase> M.withSource(
             source: StreamingEventSource,
         ): M {
@@ -46,6 +56,9 @@ abstract class WriteModelBase(
             return this
         }
 
+        /**
+         * Overrides the publisher of this [WriteModelBase] with the provided [EventPublisher].
+         */
         fun <M : WriteModelBase> M.withPublisher(
             publisher: EventPublisher,
         ): M {
@@ -53,10 +66,18 @@ abstract class WriteModelBase(
             return this
         }
 
+        /**
+         * Triggers a catch-up for this [WriteModelBase] and executed the provided block inside the
+         * transactional boundaries of this [WriteModelBase], if enforced.
+         */
         suspend infix fun <M : WriteModelBase> M.handles(
             block: suspend M.() -> Unit,
         ) = handles(CatchupSourcingStrategy(), block)
 
+        /**
+         * Triggers the sourcing operation defined by [strategy] for this [WriteModelBase] inside the
+         * transactional boundaries of this [WriteModelBase], if enforced.
+         */
         suspend fun <M : WriteModelBase, S> M.handles(
             strategy: S,
             block: suspend M.() -> Unit,

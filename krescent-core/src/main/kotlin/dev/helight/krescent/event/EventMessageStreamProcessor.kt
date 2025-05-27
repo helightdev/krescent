@@ -14,5 +14,9 @@ interface EventMessageStreamProcessor : HandlerChainParticipant {
      * @param message The event to process
      */
     suspend fun process(message: EventMessage, position: StreamingToken<*>)
+
+    /**
+     * Handles the forwarding of system-produced events.
+     */
     suspend fun forwardSystemEvent(event: Event)
 }

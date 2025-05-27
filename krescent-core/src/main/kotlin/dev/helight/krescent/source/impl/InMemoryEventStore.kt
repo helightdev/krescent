@@ -3,13 +3,12 @@ package dev.helight.krescent.source.impl
 import dev.helight.krescent.event.EventMessage
 import dev.helight.krescent.joinSequentialFlows
 import dev.helight.krescent.source.EventPublisher
-import dev.helight.krescent.source.StreamingEventSource
+import dev.helight.krescent.source.ExtendedQueryableStreamingEventSource
 import dev.helight.krescent.source.StreamingToken
 import dev.helight.krescent.source.SubscribingEventSource
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -18,7 +17,7 @@ import java.time.Instant
 
 class InMemoryEventStore(
     private val events: MutableList<EventMessage> = mutableListOf(),
-) : StreamingEventSource, SubscribingEventSource, EventPublisher {
+) : ExtendedQueryableStreamingEventSource, SubscribingEventSource, EventPublisher {
 
     private val mutex = Mutex()
     private val eventFlow = MutableSharedFlow<Pair<EventMessage, SequenceToken>>(
@@ -123,13 +122,10 @@ class InMemoryEventStore(
         eventFlow.emit(event to newToken)
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
-    @Suppress("unused")
     suspend fun serialize(): ByteArray = mutex.withLock {
         Json.encodeToString(SerializedState(events)).toByteArray(StandardCharsets.UTF_8)
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
     suspend fun load(data: ByteArray) {
         mutex.withLock {
             events.clear()

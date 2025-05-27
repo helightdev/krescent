@@ -10,6 +10,7 @@ class EventModel(
     val doorstep: EventMessageStreamProcessor,
 ) {
 
+    // Remove this later, this is just a placeholder for lifecycle management.
     private suspend fun runInLifecycle(block: suspend () -> Unit) {
         block()
     }

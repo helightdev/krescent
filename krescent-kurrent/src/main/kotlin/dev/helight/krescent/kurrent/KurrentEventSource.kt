@@ -11,8 +11,17 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.time.Instant
 
+/**
+ * Represents an event source for interacting with a KurrentDB stream.
+ * This class implements both event consumption via `StreamingEventSource`
+ * and event publishing via `EventPublisher`.
+ *
+ * @property client The KurrentDBClient used for interacting with the database.
+ * @property streamId The unique identifier for the stream being referenced.
+ * @property credentials Optional user credentials for authentication.
+ * @property resolvedLinks Indicates whether links should be resolved.
+ */
 class KurrentEventSource(
     val client: KurrentDBClient,
     val streamId: String,
@@ -36,14 +45,6 @@ class KurrentEventSource(
 
     override suspend fun getTailToken(): KurrentStreamingToken {
         return KurrentStreamingToken.TailStreamingToken()
-    }
-
-    override suspend fun getTokenAtTime(timestamp: Instant): KurrentStreamingToken {
-        error("Not implemented for KurrentDB")
-    }
-
-    override suspend fun getTokenForEventId(eventId: String): KurrentStreamingToken? {
-        error("Not implemented for KurrentDB")
     }
 
     override suspend fun fetchEventsAfter(
@@ -75,7 +76,7 @@ class KurrentEventSource(
                         send(message to token)
                     }
                 } catch (_: StreamNotFoundException) {
-                    // If the stream does not exist, we just return an empty flow.
+                    // If the stream does not exist, we just return an empty flow since this is not considered an error.
                 }
             }.join()
         }
@@ -94,6 +95,7 @@ class KurrentEventSource(
         val startRevision = if (token is KurrentStreamingToken.RevisionStreamingToken) token.revision else null
 
         return channelFlow {
+            // I move this to the IO dispatcher since I don't trust the kurrentdb client after the fromRevision incident.
             launch(Dispatchers.IO) {
                 val subscription = client.subscribeToStream(streamId, object : SubscriptionListener() {
                     override fun onEvent(

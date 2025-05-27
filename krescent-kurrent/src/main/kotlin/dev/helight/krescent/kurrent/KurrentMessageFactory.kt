@@ -11,8 +11,14 @@ import kotlinx.serialization.json.put
 import java.nio.charset.StandardCharsets
 import java.util.*
 
+/**
+ * A factory for encoding and decoding event messages to and from the kurrentdb event store format.
+ */
 object KurrentMessageFactory {
 
+    /**
+     * Encodes an EventMessage into an EventData structure for event sourcing systems.
+     */
     fun encode(message: EventMessage): EventData {
         val metadata = buildJsonObject {
             put("original-timestamp", message.timestamp.toString())
@@ -31,6 +37,9 @@ object KurrentMessageFactory {
             .build()
     }
 
+    /**
+     * Decodes a RecordedEvent from the event store into an EventMessage.
+     */
     fun decode(event: RecordedEvent): EventMessage {
         val decodedPayload = Json.Default.parseToJsonElement(
             event.eventData.toString(StandardCharsets.UTF_8)

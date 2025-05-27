@@ -30,7 +30,7 @@ import kotlin.test.assertTrue
 class BookWriteModelTest {
 
     @Test
-    fun `Test basic`() = runBlocking {
+    fun `Test reconstruction of a simple write model`() = runBlocking {
         val lockProvider = LocalSharedLockProvider()
         val stream = InMemoryEventStore(bookstoreSimulatedEventStream.toMutableList())
         BookWriteModel("1", lockProvider, stream) handles {
@@ -41,7 +41,7 @@ class BookWriteModelTest {
     }
 
     @Test
-    fun `Test multiple writes`(): Unit = runBlocking {
+    fun `Test multiple writes using write models`(): Unit = runBlocking {
         val lockProvider = LocalSharedLockProvider()
         val stream = InMemoryEventStore(bookstoreSimulatedEventStream.toMutableList())
         BookWriteModel("1", lockProvider, stream) handles {
@@ -61,7 +61,7 @@ class BookWriteModelTest {
     }
 
     @Test
-    fun `Test racing writes`(): Unit = runBlocking {
+    fun `Test racing writes being prevented by a lock provider`(): Unit = runBlocking {
         val lockProvider = LocalSharedLockProvider()
         val stream = InMemoryEventStore(bookstoreSimulatedEventStream.toMutableList())
         var isWriting = false
@@ -80,24 +80,26 @@ class BookWriteModelTest {
             return wasWellBehaved
         }
 
-        assertTrue(listOf(
-            async { racingFun(lockProvider) },
-            async { racingFun(lockProvider) },
-            async { racingFun(lockProvider) },
-            async { racingFun(lockProvider) },
-        ).awaitAll().all { it })
+        assertTrue(
+            listOf(
+                async { racingFun(lockProvider) },
+                async { racingFun(lockProvider) },
+                async { racingFun(lockProvider) },
+                async { racingFun(lockProvider) },
+            ).awaitAll().all { it })
 
         // Sanity check to ensure that the lock provider is actually working
-        assertFalse(listOf(
-            async { racingFun(LocalSharedLockProvider()) },
-            async { racingFun(LocalSharedLockProvider()) },
-            async { racingFun(LocalSharedLockProvider()) },
-            async { racingFun(LocalSharedLockProvider()) },
-        ).awaitAll().all { it })
+        assertFalse(
+            listOf(
+                async { racingFun(LocalSharedLockProvider()) },
+                async { racingFun(LocalSharedLockProvider()) },
+                async { racingFun(LocalSharedLockProvider()) },
+                async { racingFun(LocalSharedLockProvider()) },
+            ).awaitAll().all { it })
     }
 
     @Test
-    fun `Test checkpointing`(): Unit = runBlocking {
+    fun `Test checkpointing with reducer`(): Unit = runBlocking {
         val lockProvider = LocalSharedLockProvider()
         val stream = InMemoryEventStore(bookstoreSimulatedEventStream.toMutableList())
         val storage = InMemoryCheckpointStorage()
@@ -117,6 +119,28 @@ class BookWriteModelTest {
                 assertEquals(state.available, 9)
                 assertEquals(eventsRead, 0)
             }
+        }
+    }
+
+    @Test
+    fun `Test writes using a reducing write model`(): Unit = runBlocking {
+        val lockProvider = LocalSharedLockProvider()
+        val stream = InMemoryEventStore()
+        val storage = InMemoryCheckpointStorage()
+        ReducingBookWriteModel("1", lockProvider, stream, storage) handles {
+            assertFalse(doesExist)
+            create("Book One", "Author One", 9.99, 10)
+            useState {
+                assertEquals(10, state.available)
+                assertEquals("Book One", state.book?.title)
+            }
+        }
+
+        ReducingBookWriteModel("1", lockProvider, stream, storage) handles {
+            assertTrue(doesExist)
+            useState { assertEquals(10, state.available) }
+            addCopies(5)
+            useState { assertEquals(15, state.available) }
         }
     }
 
@@ -279,9 +303,21 @@ class ReducingBookWriteModel(
         state.copy(available = state.available + count).push()
     }
 
+    suspend fun create(title: String, author: String, price: Double, copies: Int) = useState {
+        if (state.book != null) error("Book already exists.")
+        emitEvent(BookAddedEvent(bookId, title, author, price, copies))
+        state.copy(
+            book = BookState(title, author, price, copies),
+            available = copies
+        ).push()
+    }
+
     fun canBeLent(count: Int): Boolean = useState {
         state.available >= count
     }
+
+    val doesExist: Boolean
+        get() = useState { state.book != null }
 
     @Serializable
     data class State(
