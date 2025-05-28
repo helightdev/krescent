@@ -2,6 +2,8 @@
 title: Events
 ---
 
+# Events
+
 Events in Krescent are immutable facts that represent something that has happened in the system. They are the primary
 building blocks of Krescent's event-driven architecture.
 
@@ -16,7 +18,7 @@ In Krescent, events can be categorized into three types:
 - **System Events**: These are just a special case of virtual events which are only emitted by the framework and usually
   represent internal state changes, notifications or stream state changes.
 
-#### Example Event Definition
+### Example Event Definitions
 
 ```kotlin
 @Serializable

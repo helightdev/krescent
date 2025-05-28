@@ -2,6 +2,8 @@
 title: Models
 ---
 
+# Models
+
 Models in Krescent are the core components of the framework yet relatively loosely defined. In essence, they are
 end-user flavored event handlers with additional syntactic sugar. While there is a base `EventModelBase`, you will
 mostly
@@ -145,3 +147,84 @@ BookWriteModel("1", lockProvider).withSource(eventSource) handles { // [!code fo
 > source and then execute the specified block while still in transaction. We use this scope to execute the
 > `lend` method to create a new event and emit it to the event source. After this operation, the events will be
 > added to the event source and the transaction will be finished, freeing the lock that has been acquired.
+
+## Reducing Models
+
+Krescent also provides a reduce-style syntax for models, which automatically adds serialization for
+checkpointing and enforces clearly visible state changes.
+
+### Example Reducing Read Model
+
+```kotlin
+class BooksAvailableModel() : ReducingReadModel<BooksAvailableModel.State>(
+    "book.available", 1, bookstoreEventCatalog
+) {
+    override val initialState: State
+        get() = State()
+
+    override suspend fun reduce(state: State, event: Event) = when (event) {
+        is BookAddedEvent -> state.copy(
+            available = state.available + (event.bookId to event.copies)
+        )
+        // Other events can be handled here
+        else -> state
+    }
+
+    @Serializable
+    data class State(
+        val available: Map<String, Int> = emptyMap(),
+    )
+}
+````
+
+### Example Reducing Write Model
+
+````kotlin
+class ReducingBookWriteModel(
+    val bookId: String,
+    val lockProvider: KrescentLockProvider,
+) : ReducingWriteModel<ReducingBookWriteModel.State>(
+    "test", 1, bookstoreEventCatalog,
+    configure = { useTransaction(lockProvider, "book-$bookId") }
+) {
+    override val initialState: State
+        get() = State()
+
+    override suspend fun reduce(state: State, event: Event): State {
+        if (event !is BookEvent || event.bookId != bookId) return state
+        return when (event) {
+            is BookAddedEvent -> state.copy(
+                book = BookState(
+                    title = event.title, author = event.author,
+                    price = event.price, copies = event.copies
+                ), available = event.copies
+            )
+            // Handle other events here
+            is BookLentEvent -> state.copy(available = state.available - 1)
+            is BookReturnedEvent -> state.copy(available = state.available + 1)
+            else -> state
+        }
+    }
+
+    // [!code focus:7]
+    suspend fun lend(userId: String) = useState {
+        if (canBeLent(1)) error("No book available to be lent.")
+        emitEvent(BookLentEvent(bookId, userId, "2025-1-1"))
+
+        // Use .push() to update the internal state of the model
+        state.copy(available = state.available - 1).push()
+    }
+
+    // [!code focus:4]
+    // Use useState() to access the current state of the model as "state"
+    fun canBeLent(count: Int): Boolean = useState {
+        state.available >= count
+    }
+
+    @Serializable
+    data class State(
+        val book: BookState? = null,
+        val available: Int = 0,
+    )
+}
+````
