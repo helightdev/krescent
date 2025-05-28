@@ -2,7 +2,6 @@ package dev.helight.krescent.event.logging
 
 import dev.helight.krescent.event.*
 import dev.helight.krescent.source.StreamingToken
-import kotlinx.serialization.json.jsonObject
 
 class ColoredEventStreamLogFormatter(
     val indexWidth: Int = 5,
@@ -33,7 +32,7 @@ class ColoredEventStreamLogFormatter(
         val indexStr = index.toString().padStart(indexWidth, '0')
         val positionIndex = when (event.metadata?.position) {
             null -> "$GREY${"-".repeat(positionWidth)}$RESET"
-            else -> event.metadata!!.position!!.serialize().padEnd(positionWidth)
+            else -> event.metadata!!.position.serialize().padEnd(positionWidth)
         }
         val eventName = when (event) {
             is SystemEmittedEvent -> event.event::class.simpleName!!.take(eventNameWidth).padEnd(eventNameWidth)
@@ -62,7 +61,7 @@ class ColoredEventStreamLogFormatter(
         val indexStr = index.toString().padStart(indexWidth, '0')
         val positionIndex = position.serialize().padEnd(positionWidth)
         val eventName = message.type.take(eventNameWidth - 1).padEnd(eventNameWidth - 1)
-        val payload = message.payload.jsonObject.toString().padEnd(payloadWidth)
+        val payload = message.payload.toString().padEnd(payloadWidth)
         return "$DARK_GREY#$indexStr$RESET $PHYSICAL $positionIndex [$${eventName}] $GREY$payload | ${message.id}"
     }
 }

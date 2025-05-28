@@ -8,6 +8,7 @@ import dev.helight.krescent.model.EventModelBase
 import dev.helight.krescent.model.ExtensionAwareBuilder
 import dev.helight.krescent.model.ModelExtension
 import dev.helight.krescent.source.ReplayingEventSourceConsumer
+import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.source.StreamingToken
 import dev.helight.krescent.source.impl.InMemoryEventStore
 
@@ -60,6 +61,15 @@ class ConsoleLoggingEventStreamProcessor(
         ) {
             ReplayingEventSourceConsumer(
                 InMemoryEventStore(this.toMutableList()),
+                ConsoleLoggingEventStreamProcessor(formatter)
+            ).catchup()
+        }
+
+        suspend fun StreamingEventSource.consoleLog(
+            formatter: EventStreamLogFormatter = ColoredEventStreamLogFormatter(),
+        ) {
+            ReplayingEventSourceConsumer(
+                this,
                 ConsoleLoggingEventStreamProcessor(formatter)
             ).catchup()
         }
