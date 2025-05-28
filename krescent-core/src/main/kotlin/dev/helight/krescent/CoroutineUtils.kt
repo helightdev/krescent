@@ -2,6 +2,7 @@ package dev.helight.krescent
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
@@ -9,10 +10,31 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
+/**
+ * Buffers a flow in memory using a background job.
+ */
 fun <T> Flow<T>.bufferInMemory(scope: CoroutineScope): FlowBuffer<T> {
     return FlowBuffer<T>().apply {
         start(scope, this@bufferInMemory)
     }
+}
+
+/**
+ * Collects a flow and buffers its values in memory for a specified duration.
+ * After the timeout, it returns the collected values as a list.
+ *
+ * @param scope The coroutine scope in which to run the collection.
+ * @param timeoutMillis The duration in milliseconds to wait before returning the buffered values.
+ * @return A list of collected values from the flow.
+ */
+suspend fun <T> Flow<T>.timeoutBufferInMemory(
+    scope: CoroutineScope,
+    timeoutMillis: Long,
+): List<T> {
+    val buffer = FlowBuffer<T>()
+    buffer.start(scope, this)
+    delay(timeoutMillis)
+    return buffer.stop()
 }
 
 class FlowBuffer<T> {

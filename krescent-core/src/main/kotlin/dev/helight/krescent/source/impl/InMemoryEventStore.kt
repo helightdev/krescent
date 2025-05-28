@@ -19,6 +19,8 @@ class InMemoryEventStore(
     private val events: MutableList<EventMessage> = mutableListOf(),
 ) : ExtendedQueryableStreamingEventSource, SubscribingEventSource, EventPublisher {
 
+    constructor(vararg events: EventMessage) : this(events.toMutableList())
+
     private val mutex = Mutex()
     private val eventFlow = MutableSharedFlow<Pair<EventMessage, SequenceToken>>(
         extraBufferCapacity = 255

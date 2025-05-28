@@ -14,18 +14,16 @@ class ChronoBufferedMergeStreamEventSource private constructor(
 ) : StreamingEventSource by delegate {
 
     companion object {
-        suspend fun create(sources: List<StreamingEventSource>): ChronoBufferedMergeStreamEventSource =
-            channelFlow {
-                for (source in sources) {
-                    launch {
-                        source.fetchEventsAfter().collect {
-                            send(it.first)
-                        }
+        suspend fun create(sources: List<StreamingEventSource>): ChronoBufferedMergeStreamEventSource = channelFlow {
+            for (source in sources) {
+                launch {
+                    source.fetchEventsAfter().collect {
+                        send(it.first)
                     }
                 }
-            }.toList().sortedBy { it.timestamp }.toMutableList().let {
-                ChronoBufferedMergeStreamEventSource(InMemoryEventStore(it))
             }
+        }.toList().sortedBy { it.timestamp }.toMutableList().let {
+            ChronoBufferedMergeStreamEventSource(InMemoryEventStore(it))
+        }
     }
 }
-
