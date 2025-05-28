@@ -17,6 +17,9 @@ import java.util.*
  * into a single continuous flow of events. Events are streamed in order of their timestamps across
  * the provided sources.
  *
+ * Fetch operations are performed in lazy batches, fetching a maximum of [batchSize] events from each source
+ * at a time. Streaming operations use a k-way merge with a minimum age threshold for newly received events.
+ *
  * @param sources A map of string keys to their corresponding [StreamingEventSource] instances. Each source
  * represents an independent stream of events to be merged.
  * @param minAge The minimum age (in milliseconds) of events to be considered safe for streaming. Events
