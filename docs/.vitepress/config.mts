@@ -4,7 +4,7 @@ import {defineConfig} from 'vitepress'
 export default defineConfig({
     title: "Krescent",
     description: "Kotlin Event Sourcing Library",
-    base: '/krescent/',
+    base: '/',
     cleanUrls: true,
     lang: 'en-US',
     appearance: 'dark',
