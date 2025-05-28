@@ -1,6 +1,7 @@
 package dev.helight.krescent.source.impl
 
 import dev.helight.krescent.event.EventMessage
+import dev.helight.krescent.event.logging.ConsoleLoggingEventStreamProcessor.Companion.consoleLog
 import dev.helight.krescent.source.StreamingToken
 import dev.helight.krescent.timeoutBufferInMemory
 import kotlinx.coroutines.delay
@@ -31,7 +32,7 @@ class MergingStreamingEventSourceTest {
             mapOf(
                 "a" to a,
                 "b" to b
-            )
+            ), minAge = 0L
         )
         assertPayloadOrdered(merged.fetchEventsAfter().toList(), 6)
         assertPayloadOrdered(merged.streamEvents().timeoutBufferInMemory(this, 100), 6)
@@ -53,7 +54,7 @@ class MergingStreamingEventSourceTest {
             mapOf(
                 "a" to a,
                 "b" to b
-            )
+            ), minAge = 0L
         )
         assertPayloadOrdered(merged.fetchEventsAfter().toList(), 6)
         assertPayloadOrdered(merged.streamEvents().timeoutBufferInMemory(this, 100), 6)
@@ -85,10 +86,13 @@ class MergingStreamingEventSourceTest {
         val merged = MergingStreamingEventSource(
             mapOf(
                 "a" to a
-            ), minAge = 1000 * 5
+            ), minAge = 1000 * 5, streamPrefetch = false
         ) // 5 seconds
         val events = merged.fetchEventsAfter().toList()
         assertEquals(2, events.size) // Only the first two events should be returned
+        val streamedEvents = merged.streamEvents().timeoutBufferInMemory(this, 100).toList()
+        assertEquals(2, streamedEvents.size) // Only the first two events should be streamed
+
     }
 
     @Test
@@ -107,7 +111,7 @@ class MergingStreamingEventSourceTest {
             mapOf(
                 "a" to a,
                 "b" to b
-            ), batchSize = 2
+            ), batchSize = 2, minAge = 0L
         )
         assertPayloadOrdered(merged.fetchEventsAfter().toList(), 6)
         assertPayloadOrdered(merged.streamEvents().timeoutBufferInMemory(this, 100), 6)
@@ -128,6 +132,7 @@ class MergingStreamingEventSourceTest {
                 "a" to a
             ), minAge = 500, pollingInterval = 100
         ) // 0.5 seconds
+
         val job = launch {
             merged.streamEvents().collect { event ->
                 buffer.add(event)
@@ -140,6 +145,7 @@ class MergingStreamingEventSourceTest {
         a.publish(EventMessage(type = "a", payload = JsonPrimitive(6)))
         job.cancel()
 
+        buffer.map { it.first }.consoleLog()
         assertEquals(5, buffer.size)
         assertPayloadOrdered(buffer, 5)
     }
