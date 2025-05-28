@@ -1,8 +1,8 @@
-package dev.helight.krescent
+package dev.helight.krescent.source.impl
 
+import dev.helight.krescent.bufferInMemory
 import dev.helight.krescent.event.EventMessage
 import dev.helight.krescent.source.StreamingToken
-import dev.helight.krescent.source.impl.InMemoryEventStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.takeWhile
@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonPrimitive
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -28,26 +28,26 @@ class InMemoryEventStoreTest {
     @Test
     fun `test token serialization and deserialization`() = runBlocking {
         val token = InMemoryEventStore.SequenceToken(42)
-        assertEquals("42", token.serialize())
+        Assertions.assertEquals("42", token.serialize())
 
         val deserializedToken = eventStore.deserializeToken("42")
-        assertEquals(42, deserializedToken.index)
+        Assertions.assertEquals(42, deserializedToken.index)
 
         // Test invalid token
         val invalidToken = eventStore.deserializeToken("not-a-number")
-        assertEquals(-1, invalidToken.index)
+        Assertions.assertEquals(-1, invalidToken.index)
     }
 
     @Test
     fun `test getHeadToken returns token with index -1`() = runBlocking {
         val headToken = eventStore.getHeadToken()
-        assertEquals(-1, headToken.index)
+        Assertions.assertEquals(-1, headToken.index)
     }
 
     @Test
     fun `test getTailToken returns token with index -1 when store is empty`() = runBlocking {
         val tailToken = eventStore.getTailToken()
-        assertEquals(-1, tailToken.index)
+        Assertions.assertEquals(-1, tailToken.index)
     }
 
     @Test
@@ -58,7 +58,7 @@ class InMemoryEventStoreTest {
         }
 
         val tailToken = eventStore.getTailToken()
-        assertEquals(2, tailToken.index)
+        Assertions.assertEquals(2, tailToken.index)
     }
 
     @Test
@@ -74,15 +74,15 @@ class InMemoryEventStoreTest {
 
         // Test timestamp before all events
         val tokenBefore = eventStore.getTokenAtTime(now.minusSeconds(20))
-        assertEquals(-1, tokenBefore.index)
+        Assertions.assertEquals(-1, tokenBefore.index)
 
         // Test timestamp between events
         val tokenMiddle = eventStore.getTokenAtTime(now.minusSeconds(5))
-        assertEquals(0, tokenMiddle.index)
+        Assertions.assertEquals(0, tokenMiddle.index)
 
         // Test timestamp after all events
         val tokenAfter = eventStore.getTokenAtTime(now.plusSeconds(20))
-        assertEquals(2, tokenAfter.index)
+        Assertions.assertEquals(2, tokenAfter.index)
     }
 
     @Test
@@ -95,16 +95,16 @@ class InMemoryEventStoreTest {
 
         // Test existing event ID
         val token1 = eventStore.getTokenForEventId("event-1")
-        assertNotNull(token1)
-        assertEquals(0, (token1 as InMemoryEventStore.SequenceToken).index)
+        Assertions.assertNotNull(token1)
+        Assertions.assertEquals(0, (token1 as InMemoryEventStore.SequenceToken).index)
 
         val token2 = eventStore.getTokenForEventId("event-2")
-        assertNotNull(token2)
-        assertEquals(1, (token2 as InMemoryEventStore.SequenceToken).index)
+        Assertions.assertNotNull(token2)
+        Assertions.assertEquals(1, (token2 as InMemoryEventStore.SequenceToken).index)
 
         // Test non-existent event ID
         val tokenNonExistent = eventStore.getTokenForEventId("non-existent")
-        assertNull(tokenNonExistent)
+        Assertions.assertNull(tokenNonExistent)
     }
 
     @Test
@@ -120,23 +120,23 @@ class InMemoryEventStoreTest {
         // Test fetching after head token
         val headToken = eventStore.getHeadToken()
         val eventsAfterHead = eventStore.fetchEventsAfter(headToken).toList()
-        assertEquals(3, eventsAfterHead.size)
-        assertEquals("event-1", eventsAfterHead[0].first.id)
-        assertEquals("event-2", eventsAfterHead[1].first.id)
-        assertEquals("event-3", eventsAfterHead[2].first.id)
+        Assertions.assertEquals(3, eventsAfterHead.size)
+        Assertions.assertEquals("event-1", eventsAfterHead[0].first.id)
+        Assertions.assertEquals("event-2", eventsAfterHead[1].first.id)
+        Assertions.assertEquals("event-3", eventsAfterHead[2].first.id)
 
         // Test fetching after a specific token
         val token1 = eventStore.getTokenForEventId("event-1")!!
         val eventsAfterToken1 = eventStore.fetchEventsAfter(token1).toList()
-        assertEquals(2, eventsAfterToken1.size)
-        assertEquals("event-2", eventsAfterToken1[0].first.id)
-        assertEquals("event-3", eventsAfterToken1[1].first.id)
+        Assertions.assertEquals(2, eventsAfterToken1.size)
+        Assertions.assertEquals("event-2", eventsAfterToken1[0].first.id)
+        Assertions.assertEquals("event-3", eventsAfterToken1[1].first.id)
 
         // Test fetching with limit
         val eventsWithLimit = eventStore.fetchEventsAfter(headToken, 2).toList()
-        assertEquals(2, eventsWithLimit.size)
-        assertEquals("event-1", eventsWithLimit[0].first.id)
-        assertEquals("event-2", eventsWithLimit[1].first.id)
+        Assertions.assertEquals(2, eventsWithLimit.size)
+        Assertions.assertEquals("event-1", eventsWithLimit[0].first.id)
+        Assertions.assertEquals("event-2", eventsWithLimit[1].first.id)
     }
 
     @Test
@@ -167,10 +167,10 @@ class InMemoryEventStoreTest {
         }.collect()
 
         println("Collected all events: ${events.map { it.first.id }}")
-        assertEquals(3, events.size)
-        assertEquals("event-1", events[0].first.id)
-        assertEquals("event-2", events[1].first.id)
-        assertEquals("event-3", events[2].first.id)
+        Assertions.assertEquals(3, events.size)
+        Assertions.assertEquals("event-1", events[0].first.id)
+        Assertions.assertEquals("event-2", events[1].first.id)
+        Assertions.assertEquals("event-3", events[2].first.id)
     }
 
     @Test
@@ -192,10 +192,10 @@ class InMemoryEventStoreTest {
 
         val events = buffer.stop()
         println("Collected all events: ${events.map { it.first.id }}")
-        assertEquals(3, events.size)
-        assertEquals("event-1", events[0].first.id)
-        assertEquals("event-2", events[1].first.id)
-        assertEquals("event-3", events[2].first.id)
+        Assertions.assertEquals(3, events.size)
+        Assertions.assertEquals("event-1", events[0].first.id)
+        Assertions.assertEquals("event-2", events[1].first.id)
+        Assertions.assertEquals("event-3", events[2].first.id)
     }
 
     @Test
@@ -205,8 +205,8 @@ class InMemoryEventStoreTest {
 
         // Verify the event was added by fetching it
         val events = eventStore.fetchEventsAfter(eventStore.getHeadToken()).toList()
-        assertEquals(1, events.size)
-        assertEquals("test-event", events[0].first.id)
+        Assertions.assertEquals(1, events.size)
+        Assertions.assertEquals("test-event", events[0].first.id)
     }
 
     // Helper function to create test events
