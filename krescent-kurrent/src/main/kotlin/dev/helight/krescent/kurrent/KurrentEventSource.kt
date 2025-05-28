@@ -33,19 +33,15 @@ class KurrentEventSource(
 
     override suspend fun deserializeToken(encoded: String): KurrentStreamingToken {
         return when (encoded) {
-            "HEAD" -> KurrentStreamingToken.HeadStreamingToken()
-            "TAIL" -> KurrentStreamingToken.TailStreamingToken()
-            else -> KurrentStreamingToken.RevisionStreamingToken(encoded.toLong())
+            "HEAD" -> KurrentStreamingToken.HeadToken()
+            "TAIL" -> KurrentStreamingToken.TailToken()
+            else -> KurrentStreamingToken.RevisionToken(encoded.toLong())
         }
     }
 
-    override suspend fun getHeadToken(): KurrentStreamingToken {
-        return KurrentStreamingToken.HeadStreamingToken()
-    }
+    override suspend fun getHeadToken(): KurrentStreamingToken = KurrentStreamingToken.HeadToken()
 
-    override suspend fun getTailToken(): KurrentStreamingToken {
-        return KurrentStreamingToken.TailStreamingToken()
-    }
+    override suspend fun getTailToken(): KurrentStreamingToken = KurrentStreamingToken.TailToken()
 
     override suspend fun fetchEventsAfter(
         token: StreamingToken<*>?,
@@ -55,12 +51,12 @@ class KurrentEventSource(
             throw IllegalArgumentException("Token must be of type KurrentStreamingToken")
         }
 
-        var readStreamOptions = ReadStreamOptions.get().forwards()
-        if (credentials != null) readStreamOptions = readStreamOptions.authenticated(credentials)
+        val readStreamOptions = ReadStreamOptions.get().forwards()
+        if (credentials != null) readStreamOptions.authenticated(credentials)
         if (limit != null) readStreamOptions.maxCount(limit.toLong())
-        if (resolvedLinks) readStreamOptions = readStreamOptions.resolveLinkTos()
-        readStreamOptions = (token ?: getHeadToken()).applyToReadOption(readStreamOptions)
-        val startRevision = if (token is KurrentStreamingToken.RevisionStreamingToken) token.revision else null
+        if (resolvedLinks) readStreamOptions.resolveLinkTos()
+        (token ?: getHeadToken()).applyTo(readStreamOptions)
+        val startRevision = if (token is KurrentStreamingToken.RevisionToken) token.revision else null
 
         return channelFlow {
             launch(Dispatchers.IO) {
@@ -68,7 +64,7 @@ class KurrentEventSource(
                     val result = client.readStream(streamId, readStreamOptions).await()
                     for (t in result.events) {
                         val evt = t.originalEvent
-                        val token = KurrentStreamingToken.RevisionStreamingToken(evt.revision)
+                        val token = KurrentStreamingToken.RevisionToken(evt.revision)
                         val message = KurrentMessageFactory.decode(evt)
                         // The docs say the revision is exclusive, but in my testing it seems inclusive.
                         // So we just check if the revision is the same, and if it is, we skip it.
@@ -88,11 +84,11 @@ class KurrentEventSource(
         }
 
         val token = startToken ?: getHeadToken()
-        var subscribeToStreamOptions = SubscribeToStreamOptions.get()
-        if (credentials != null) subscribeToStreamOptions = subscribeToStreamOptions.authenticated(credentials)
-        if (resolvedLinks) subscribeToStreamOptions = subscribeToStreamOptions.resolveLinkTos()
-        subscribeToStreamOptions = token.applyToSubscribeOption(subscribeToStreamOptions)
-        val startRevision = if (token is KurrentStreamingToken.RevisionStreamingToken) token.revision else null
+        val subscribeToStreamOptions = SubscribeToStreamOptions.get()
+        if (credentials != null) subscribeToStreamOptions.authenticated(credentials)
+        if (resolvedLinks) subscribeToStreamOptions.resolveLinkTos()
+        token.applyTo(subscribeToStreamOptions)
+        val startRevision = if (token is KurrentStreamingToken.RevisionToken) token.revision else null
 
         return channelFlow {
             // I move this to the IO dispatcher since I don't trust the kurrentdb client after the fromRevision incident.
@@ -103,9 +99,9 @@ class KurrentEventSource(
                         event: ResolvedEvent,
                     ) {
                         val evt = event.originalEvent
-                        val token = KurrentStreamingToken.RevisionStreamingToken(evt.revision)
-                        val message = KurrentMessageFactory.decode(evt)
+                        val token = KurrentStreamingToken.RevisionToken(evt.revision)
                         if (startRevision == token.revision) return
+                        val message = KurrentMessageFactory.decode(evt)
                         runBlocking {
                             send(message to token)
                         }
@@ -127,8 +123,8 @@ class KurrentEventSource(
     override suspend fun publish(event: EventMessage): Unit = coroutineScope {
         sendMutex.withLock {
             val eventData = KurrentMessageFactory.encode(event)
-            var appendOptions = AppendToStreamOptions.get().streamState(StreamState.AnyStreamState())
-            if (credentials != null) appendOptions = appendOptions.authenticated(credentials)
+            val appendOptions = AppendToStreamOptions.get().streamState(StreamState.AnyStreamState())
+            if (credentials != null) appendOptions.authenticated(credentials)
             client.appendToStream(streamId, appendOptions, eventData).await()
         }
     }
@@ -136,10 +132,11 @@ class KurrentEventSource(
     override suspend fun publishAll(events: List<EventMessage>) {
         sendMutex.withLock {
             val eventData = events.map { KurrentMessageFactory.encode(it) }
-            var appendOptions = AppendToStreamOptions.get().streamState(StreamState.AnyStreamState())
-            if (credentials != null) appendOptions = appendOptions.authenticated(credentials)
+            val appendOptions = AppendToStreamOptions.get().streamState(StreamState.AnyStreamState())
+            if (credentials != null) appendOptions.authenticated(credentials)
             client.appendToStream(streamId, appendOptions, *eventData.toTypedArray()).await()
         }
     }
 }
+
 
