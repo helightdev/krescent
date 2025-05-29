@@ -1,6 +1,7 @@
 package dev.helight.krescent.event
 
 import dev.helight.krescent.source.StreamingToken
+import dev.helight.krescent.source.impl.InMemoryEventStore
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -55,6 +56,10 @@ class EventCatalog(
     val events: Map<String, EventRegistration<*>>,
     val eventTypes: Map<KClass<out Event>, EventRegistration<*>>,
 ) {
+
+    /**
+     * Decodes an [EventMessage] at the given [position] into an [Event].
+     */
     fun decode(message: EventMessage, position: StreamingToken<*>): Event? {
         val type = message.type
         val eventRegistration = events[type] ?: return null
@@ -68,6 +73,11 @@ class EventCatalog(
         return evt
     }
 
+    /**
+     * Encodes the given event back into an [EventMessage].
+     *
+     * This requires the event to already have metadata set, which is typically the case for physical events.
+     */
     @Suppress("unused")
     fun encode(event: Event): EventMessage {
         val eventRegistration = eventTypes[event::class] ?: error("Event type not registered")
@@ -82,6 +92,9 @@ class EventCatalog(
         )
     }
 
+    /**
+     * Creates an [EventMessage] from the given [event].
+     */
     fun create(event: Event): EventMessage {
         val eventRegistration =
             eventTypes[event::class] ?: error("Event type not registered: ${event::class.simpleName}")
@@ -92,6 +105,29 @@ class EventCatalog(
             payload = payload
         )
     }
+
+    /**
+     * Creates an [InMemoryEventStore] with the given events.
+     *
+     * @param events The events to store in the in-memory event store.
+     */
+    fun memoryStore(vararg events: Event): InMemoryEventStore {
+        return InMemoryEventStore(events.map {
+            create(it)
+        }.toMutableList())
+    }
+
+    /**
+     * Creates an [InMemoryEventStore] with the given collection of events.
+     *
+     * @param events The collection of events to store in the in-memory event store.
+     */
+    fun memoryStore(events: Collection<Event>): InMemoryEventStore {
+        return InMemoryEventStore(events.map {
+            create(it)
+        }.toMutableList())
+    }
+
 
     data class EventRegistration<T : Event>(
         val type: KClass<T>,

@@ -135,6 +135,14 @@ class InMemoryEventStore(
         }
     }
 
+    suspend fun copy(): InMemoryEventStore = mutex.withLock {
+        return InMemoryEventStore(events.toMutableList())
+    }
+
+    suspend fun toList(): List<EventMessage> = mutex.withLock {
+        events.toList()
+    }
+
     @Serializable
     data class SerializedState(
         val events: List<@Serializable() EventMessage>,
