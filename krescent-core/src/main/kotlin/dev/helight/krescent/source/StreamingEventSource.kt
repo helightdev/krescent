@@ -2,7 +2,7 @@ package dev.helight.krescent.source
 
 import dev.helight.krescent.event.EventMessage
 import kotlinx.coroutines.flow.Flow
-import java.time.Instant
+import kotlinx.datetime.Instant
 
 /**
  * Interface for an event source that provides a replayable stream of events.

@@ -5,7 +5,7 @@ import dev.helight.krescent.source.EventSourceConsumer
 import dev.helight.krescent.source.EventSourcingStrategy
 import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.source.StreamingToken
-import java.time.Instant
+import kotlinx.datetime.Clock
 
 class CheckpointingEventSourceConsumer(
     val namespace: String,
@@ -73,7 +73,7 @@ class CheckpointingEventSourceConsumer(
             namespace = namespace,
             version = version,
             position = position.serialize(),
-            timestamp = Instant.now(),
+            timestamp = Clock.System.now(),
             data = bucket
         )
     }

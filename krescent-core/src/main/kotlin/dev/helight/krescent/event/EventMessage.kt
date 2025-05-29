@@ -1,9 +1,9 @@
 package dev.helight.krescent.event
 
-import dev.helight.krescent.serialization.InstantSerializer
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
-import java.time.Instant
 import java.util.*
 
 /**
@@ -18,8 +18,7 @@ import java.util.*
 @Serializable
 data class EventMessage(
     val id: String = UUID.randomUUID().toString(),
-    @Serializable(with = InstantSerializer::class)
-    val timestamp: Instant = Instant.now(),
+    val timestamp: Instant = Clock.System.now(),
     val type: String,
     val payload: JsonElement,
 )

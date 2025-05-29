@@ -3,9 +3,9 @@ package dev.helight.krescent.source.impl
 import dev.helight.krescent.event.EventMessage
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Instant
 import kotlinx.serialization.json.JsonNull
 import org.junit.jupiter.api.Assertions
-import java.time.Instant
 import kotlin.test.Test
 
 class ChronoBufferedMergeStreamTest {
@@ -14,22 +14,22 @@ class ChronoBufferedMergeStreamTest {
     fun test() = runBlocking {
         val a = InMemoryEventStore(
             mutableListOf(
-                EventMessage(type = "1", payload = JsonNull, timestamp = Instant.ofEpochMilli(1)),
-                EventMessage(type = "5", payload = JsonNull, timestamp = Instant.ofEpochMilli(5)),
+                EventMessage(type = "1", payload = JsonNull, timestamp = Instant.fromEpochMilliseconds(1)),
+                EventMessage(type = "5", payload = JsonNull, timestamp = Instant.fromEpochMilliseconds(5)),
             )
         )
 
         val b = InMemoryEventStore(
             mutableListOf(
-                EventMessage(type = "2", payload = JsonNull, timestamp = Instant.ofEpochMilli(2)),
-                EventMessage(type = "6", payload = JsonNull, timestamp = Instant.ofEpochMilli(6)),
+                EventMessage(type = "2", payload = JsonNull, timestamp = Instant.fromEpochMilliseconds(2)),
+                EventMessage(type = "6", payload = JsonNull, timestamp = Instant.fromEpochMilliseconds(6)),
             )
         )
 
         val c = InMemoryEventStore(
             mutableListOf(
-                EventMessage(type = "3", payload = JsonNull, timestamp = Instant.ofEpochMilli(3)),
-                EventMessage(type = "4", payload = JsonNull, timestamp = Instant.ofEpochMilli(4)),
+                EventMessage(type = "3", payload = JsonNull, timestamp = Instant.fromEpochMilliseconds(3)),
+                EventMessage(type = "4", payload = JsonNull, timestamp = Instant.fromEpochMilliseconds(4)),
             )
         )
         val merged = ChronoBufferedMergeStreamEventSource.Companion.create(listOf(a, b, c)).fetchEventsAfter().toList()

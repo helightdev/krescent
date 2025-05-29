@@ -4,6 +4,7 @@ import com.mongodb.kotlin.client.coroutine.MongoClient
 import dev.helight.krescent.checkpoint.CheckpointBucket
 import dev.helight.krescent.checkpoint.StoredCheckpoint
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
 import org.bson.Document
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -11,7 +12,6 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.Duration
-import java.time.Instant
 import kotlin.test.assertNull
 
 @Testcontainers
@@ -65,7 +65,7 @@ class MongoCollectionViewTest {
             namespace = testCheckpointNS,
             version = "1",
             position = "test-position",
-            timestamp = Instant.now(),
+            timestamp = Clock.System.now(),
             data = CheckpointBucket()
         )
 
@@ -78,7 +78,7 @@ class MongoCollectionViewTest {
             namespace = testCheckpointNS,
             version = "2",
             position = "updated-position",
-            timestamp = Instant.now(),
+            timestamp = Clock.System.now(),
             data = CheckpointBucket()
         )
         storage.storeCheckpoint(updatedCheckpoint)

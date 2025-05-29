@@ -9,11 +9,11 @@ import dev.helight.krescent.source.SubscribingEventSource
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.nio.charset.StandardCharsets
-import java.time.Instant
 
 class InMemoryEventStore(
     private val events: MutableList<EventMessage> = mutableListOf(),

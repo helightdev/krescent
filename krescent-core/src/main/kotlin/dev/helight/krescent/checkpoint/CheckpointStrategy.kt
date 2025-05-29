@@ -1,7 +1,7 @@
 package dev.helight.krescent.checkpoint
 
 import dev.helight.krescent.event.EventMessage
-import java.time.Instant
+import kotlinx.datetime.Clock
 import kotlin.concurrent.atomics.AtomicLong
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.concurrent.atomics.incrementAndFetch
@@ -58,9 +58,9 @@ class FixedTimeRateCheckpointStrategy(
 
     override suspend fun tick(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
         if (lastCheckpoint == null) return true
-        val currentTime = Instant.now()
-        val duration = currentTime.minusMillis(lastCheckpoint.timestamp.toEpochMilli()).toEpochMilli()
-        return duration >= rate.inWholeMilliseconds
+        val currentTime = Clock.System.now()
+        val duration = currentTime - (lastCheckpoint.timestamp)
+        return duration >= rate
     }
 }
 

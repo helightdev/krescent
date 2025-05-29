@@ -7,6 +7,8 @@ import dev.helight.krescent.checkpoint.CheckpointBucket
 import dev.helight.krescent.checkpoint.CheckpointStorage
 import dev.helight.krescent.checkpoint.StoredCheckpoint
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.datetime.toJavaInstant
+import kotlinx.datetime.toKotlinInstant
 import org.bson.Document
 import org.bson.types.Binary
 
@@ -40,7 +42,7 @@ class MongoCheckpointStorage(
             put("_id", checkpoint.namespace)
             put("revision", checkpoint.version)
             put("position", checkpoint.position)
-            put("timestamp", checkpoint.timestamp)
+            put("timestamp", checkpoint.timestamp.toJavaInstant())
             put("data", Binary(checkpoint.data.encodeToByteArray()))
         }
     }
@@ -50,7 +52,7 @@ class MongoCheckpointStorage(
             namespace = document.getString("_id"),
             version = document.getString("revision"),
             position = document.getString("position"),
-            timestamp = document.getDate("timestamp").toInstant(),
+            timestamp = document.getDate("timestamp").toInstant().toKotlinInstant(),
             data = CheckpointBucket.fromByteArray(document.get("data", Binary::class.java).data)
         )
     }

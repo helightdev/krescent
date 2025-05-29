@@ -1,7 +1,7 @@
 package dev.helight.krescent.event
 
 import dev.helight.krescent.source.StreamingToken
-import java.time.Instant
+import kotlinx.datetime.Instant
 
 /**
  * Base class for all events in the Krescent framework.

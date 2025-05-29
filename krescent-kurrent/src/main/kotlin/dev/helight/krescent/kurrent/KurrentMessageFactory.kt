@@ -4,6 +4,7 @@ import dev.helight.krescent.event.EventMessage
 import io.kurrent.dbclient.EventData
 import io.kurrent.dbclient.EventDataBuilder
 import io.kurrent.dbclient.RecordedEvent
+import kotlinx.datetime.toKotlinInstant
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
@@ -47,7 +48,7 @@ object KurrentMessageFactory {
         return EventMessage(
             id = event.eventId.toString(),
             type = event.eventType,
-            timestamp = event.created,
+            timestamp = event.created.toKotlinInstant(),
             payload = decodedPayload,
         )
     }

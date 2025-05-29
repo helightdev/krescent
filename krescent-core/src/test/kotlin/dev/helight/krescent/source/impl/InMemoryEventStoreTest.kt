@@ -9,12 +9,14 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.time.Instant
 import java.util.*
+import kotlin.time.Duration.Companion.seconds
 
 class InMemoryEventStoreTest {
 
@@ -63,25 +65,25 @@ class InMemoryEventStoreTest {
 
     @Test
     fun `test getTokenAtTime returns correct token`() = runBlocking {
-        val now = Instant.now()
-        val event1 = createTestEvent(timestamp = now.minusSeconds(10))
+        val now = Clock.System.now()
+        val event1 = createTestEvent(timestamp = now - 10.seconds)
         val event2 = createTestEvent(timestamp = now)
-        val event3 = createTestEvent(timestamp = now.plusSeconds(10))
+        val event3 = createTestEvent(timestamp = now + 10.seconds)
 
         eventStore.publish(event1)
         eventStore.publish(event2)
         eventStore.publish(event3)
 
         // Test timestamp before all events
-        val tokenBefore = eventStore.getTokenAtTime(now.minusSeconds(20))
+        val tokenBefore = eventStore.getTokenAtTime(now - 20.seconds)
         Assertions.assertEquals(-1, tokenBefore.index)
 
         // Test timestamp between events
-        val tokenMiddle = eventStore.getTokenAtTime(now.minusSeconds(5))
+        val tokenMiddle = eventStore.getTokenAtTime(now - 5.seconds)
         Assertions.assertEquals(0, tokenMiddle.index)
 
         // Test timestamp after all events
-        val tokenAfter = eventStore.getTokenAtTime(now.plusSeconds(20))
+        val tokenAfter = eventStore.getTokenAtTime(now + 20.seconds)
         Assertions.assertEquals(2, tokenAfter.index)
     }
 
@@ -212,7 +214,7 @@ class InMemoryEventStoreTest {
     // Helper function to create test events
     private fun createTestEvent(
         id: String = UUID.randomUUID().toString(),
-        timestamp: Instant = Instant.now(),
+        timestamp: Instant = Clock.System.now(),
         type: String = "test-event",
         payload: JsonPrimitive = JsonPrimitive("test-payload"),
     ): EventMessage {

@@ -8,25 +8,27 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Test
-import java.time.Instant
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.milliseconds
 
 class MergingStreamingEventSourceTest {
     @Test
     fun `Simple already ordered event join`() = runBlocking {
         val a = InMemoryEventStore(
-            EventMessage(type = "a", timestamp = Instant.ofEpochSecond(0L), payload = JsonPrimitive(1)),
-            EventMessage(type = "a", timestamp = Instant.ofEpochSecond(1L), payload = JsonPrimitive(2)),
-            EventMessage(type = "a", timestamp = Instant.ofEpochSecond(2L), payload = JsonPrimitive(3))
+            EventMessage(type = "a", timestamp = Instant.fromEpochSeconds(0L), payload = JsonPrimitive(1)),
+            EventMessage(type = "a", timestamp = Instant.fromEpochSeconds(1L), payload = JsonPrimitive(2)),
+            EventMessage(type = "a", timestamp = Instant.fromEpochSeconds(2L), payload = JsonPrimitive(3))
         )
         val b = InMemoryEventStore(
-            EventMessage(type = "b", timestamp = Instant.ofEpochSecond(3L), payload = JsonPrimitive(4)),
-            EventMessage(type = "b", timestamp = Instant.ofEpochSecond(4L), payload = JsonPrimitive(5)),
-            EventMessage(type = "b", timestamp = Instant.ofEpochSecond(5L), payload = JsonPrimitive(6))
+            EventMessage(type = "b", timestamp = Instant.fromEpochSeconds(3L), payload = JsonPrimitive(4)),
+            EventMessage(type = "b", timestamp = Instant.fromEpochSeconds(4L), payload = JsonPrimitive(5)),
+            EventMessage(type = "b", timestamp = Instant.fromEpochSeconds(5L), payload = JsonPrimitive(6))
         )
         val merged = MergingStreamingEventSource(
             mapOf(
@@ -41,14 +43,14 @@ class MergingStreamingEventSourceTest {
     @Test
     fun `More complex stream with resume`() = runBlocking {
         val a = InMemoryEventStore(
-            EventMessage(type = "a", timestamp = Instant.ofEpochSecond(0L), payload = JsonPrimitive(1)),
-            EventMessage(type = "a", timestamp = Instant.ofEpochSecond(100L), payload = JsonPrimitive(5)),
-            EventMessage(type = "a", timestamp = Instant.ofEpochSecond(200L), payload = JsonPrimitive(6))
+            EventMessage(type = "a", timestamp = Instant.fromEpochSeconds(0L), payload = JsonPrimitive(1)),
+            EventMessage(type = "a", timestamp = Instant.fromEpochSeconds(100L), payload = JsonPrimitive(5)),
+            EventMessage(type = "a", timestamp = Instant.fromEpochSeconds(200L), payload = JsonPrimitive(6))
         )
         val b = InMemoryEventStore(
-            EventMessage(type = "b", timestamp = Instant.ofEpochSecond(3L), payload = JsonPrimitive(2)),
-            EventMessage(type = "b", timestamp = Instant.ofEpochSecond(4L), payload = JsonPrimitive(3)),
-            EventMessage(type = "b", timestamp = Instant.ofEpochSecond(5L), payload = JsonPrimitive(4))
+            EventMessage(type = "b", timestamp = Instant.fromEpochSeconds(3L), payload = JsonPrimitive(2)),
+            EventMessage(type = "b", timestamp = Instant.fromEpochSeconds(4L), payload = JsonPrimitive(3)),
+            EventMessage(type = "b", timestamp = Instant.fromEpochSeconds(5L), payload = JsonPrimitive(4))
         )
         val merged = MergingStreamingEventSource(
             mapOf(
@@ -77,11 +79,11 @@ class MergingStreamingEventSourceTest {
 
     @Test
     fun `Test deadline cuts off too recent events`() = runBlocking {
-        val now = Instant.now()
+        val now = Clock.System.now()
         val a = InMemoryEventStore(
-            EventMessage(type = "a", timestamp = now.minusMillis(1000 * 8), payload = JsonPrimitive(1)),
-            EventMessage(type = "a", timestamp = now.minusMillis(1000 * 7), payload = JsonPrimitive(2)),
-            EventMessage(type = "a", timestamp = now.minusMillis(1000 * 1), payload = JsonPrimitive(3))
+            EventMessage(type = "a", timestamp = now - (1000 * 8).milliseconds, payload = JsonPrimitive(1)),
+            EventMessage(type = "a", timestamp = now - (1000 * 7).milliseconds, payload = JsonPrimitive(2)),
+            EventMessage(type = "a", timestamp = now - (1000 * 1).milliseconds, payload = JsonPrimitive(3))
         )
         val merged = MergingStreamingEventSource(
             mapOf(
@@ -98,14 +100,14 @@ class MergingStreamingEventSourceTest {
     @Test
     fun `Test batching works as expected`() = runBlocking {
         val a = InMemoryEventStore(
-            EventMessage(type = "a", timestamp = Instant.ofEpochSecond(0L), payload = JsonPrimitive(1)),
-            EventMessage(type = "a", timestamp = Instant.ofEpochSecond(1L), payload = JsonPrimitive(2)),
-            EventMessage(type = "a", timestamp = Instant.ofEpochSecond(2L), payload = JsonPrimitive(3))
+            EventMessage(type = "a", timestamp = Instant.fromEpochSeconds(0L), payload = JsonPrimitive(1)),
+            EventMessage(type = "a", timestamp = Instant.fromEpochSeconds(1L), payload = JsonPrimitive(2)),
+            EventMessage(type = "a", timestamp = Instant.fromEpochSeconds(2L), payload = JsonPrimitive(3))
         )
         val b = InMemoryEventStore(
-            EventMessage(type = "b", timestamp = Instant.ofEpochSecond(3L), payload = JsonPrimitive(4)),
-            EventMessage(type = "b", timestamp = Instant.ofEpochSecond(4L), payload = JsonPrimitive(5)),
-            EventMessage(type = "b", timestamp = Instant.ofEpochSecond(5L), payload = JsonPrimitive(6))
+            EventMessage(type = "b", timestamp = Instant.fromEpochSeconds(3L), payload = JsonPrimitive(4)),
+            EventMessage(type = "b", timestamp = Instant.fromEpochSeconds(4L), payload = JsonPrimitive(5)),
+            EventMessage(type = "b", timestamp = Instant.fromEpochSeconds(5L), payload = JsonPrimitive(6))
         )
         val merged = MergingStreamingEventSource(
             mapOf(
@@ -119,10 +121,10 @@ class MergingStreamingEventSourceTest {
 
     @Test
     fun `Check streaming works and also respects the deadline`() = runBlocking {
-        val now = Instant.now()
+        val now = Clock.System.now()
         val a = InMemoryEventStore(
-            EventMessage(type = "a", timestamp = now.minusMillis(1000 * 8), payload = JsonPrimitive(1)),
-            EventMessage(type = "a", timestamp = now.minusMillis(1000 * 7), payload = JsonPrimitive(2)),
+            EventMessage(type = "a", timestamp = now - (1000 * 8).milliseconds, payload = JsonPrimitive(1)),
+            EventMessage(type = "a", timestamp = now - (1000 * 7).milliseconds, payload = JsonPrimitive(2)),
             EventMessage(type = "a", timestamp = now, payload = JsonPrimitive(3))
         )
 

@@ -7,10 +7,13 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.time.Instant
 import java.util.*
+import kotlin.time.Duration.Companion.milliseconds
+
 
 /**
  * A composite streaming event source that merges and manages multiple [StreamingEventSource] instances
@@ -81,14 +84,14 @@ class MergingStreamingEventSource(
         val buffers = keys.associateWith { LinkedList<Pair<EventMessage, StreamingToken<*>>>() }
         val cursors = initialToken.positions.toMutableMap()
         val terminated = mutableSetOf<String>()
-        val deadline = Instant.now().minusMillis(minAge)!!
+        val deadline = Clock.System.now().minus(minAge.milliseconds)
         val mutex = Mutex()
         var token: CompositeStreamingToken = initialToken
 
         suspend fun fetchBatch(key: String) {
             val cursor = cursors[key]
             val events = sources[key]?.fetchEventsAfter(cursor, batchSize)?.filter { (event, _) ->
-                event.timestamp.isBefore(deadline) // Remove events that are too recent
+                event.timestamp < deadline // Remove events that are too recent
             }?.toList() ?: emptyList()
 
             mutex.withLock {
@@ -143,7 +146,7 @@ class MergingStreamingEventSource(
         val mutex = Mutex()
         var token: CompositeStreamingToken = initialToken
         var incomingBuffer = PriorityQueue<IncomingMessage>()
-        var lastAcknowledged: Instant = Instant.ofEpochMilli(0)
+        var lastAcknowledged: Instant = Instant.fromEpochSeconds(0)
 
         suspend fun perform(): Flow<Pair<EventMessage, StreamingToken<*>>> = coroutineScope {
             channelFlow {
@@ -175,12 +178,12 @@ class MergingStreamingEventSource(
                 val outgoing = ArrayDeque<Pair<EventMessage, CompositeStreamingToken>>()
                 while (true) {
                     // Poll old enough messages, tick internal cursors and then add them to the outgoing queue
-                    val deadline = Instant.now().minusMillis(minAge)
+                    val deadline = Clock.System.now() - minAge.milliseconds
                     mutex.withLock {
-                        while (incomingBuffer.peek()?.message?.timestamp?.isBefore(deadline) ?: false) {
+                        while (incomingBuffer.peek()?.message?.timestamp?.let { it < deadline } ?: false) {
                             val oldest = incomingBuffer.poll()
                             val timestamp = oldest.message.timestamp
-                            if (timestamp.isBefore(lastAcknowledged)) {
+                            if (timestamp < lastAcknowledged) {
                                 throw OutOfOrderStreamException(
                                     sourceId = oldest.source, sourceToken = oldest.position, timestamp = timestamp
                                 )
