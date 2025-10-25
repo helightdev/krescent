@@ -1,17 +1,23 @@
 package dev.helight.krescent.exposed
 
+import dev.helight.krescent.event.EventMessage
 import dev.helight.krescent.source.EventPublisher
 import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.test.StreamingEventSourceContract
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.jetbrains.exposed.sql.Database
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.Duration
 import java.util.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 @Testcontainers
 class PostgresStreamingSource : StreamingEventSourceContract {
@@ -35,20 +41,65 @@ class PostgresStreamingSource : StreamingEventSourceContract {
         )
     }
 
+    fun execWithTable(block: suspend CoroutineScope.(Database, KrescentTable) -> Unit) = runBlocking {
+        val db = connect()
+        val tableName = "krescent_${UUID.randomUUID()}"
+        val table = KrescentTable(tableName)
+        table.create(db)
+        try {
+            this.block(db, table)
+            delay(300)
+        } finally {
+            runCatching { table.drop(db) }
+        }
+    }
+
     override fun execWithStreamingSource(block: suspend CoroutineScope.(StreamingEventSource, EventPublisher) -> Unit) =
-        runBlocking {
-            val db = connect()
-            val tableName = "krescent_${UUID.randomUUID()}"
-            val table = KrescentTable(tableName)
-            table.create(db)
+        execWithTable { db, table ->
             val source = StreamingExposedEventSource(table, db, pollingDelay = 100L)
             val publisher = ExposedEventPublisher(table, db, "default")
-            try {
-                this.block(source, publisher)
-            } finally {
-                runCatching { table.drop(db) }
-            }
-            delay(300)
+            this.block(source, publisher)
         }
+
+
+    @Test
+    fun `Like matching event stream`() = execWithTable { db, table ->
+        ExposedEventPublisher(table, db, "user-ALICE-conversation-1")
+            .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 1) }))
+
+        ExposedEventPublisher(table, db, "user-BOB-conversation-1")
+            .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 2) }))
+
+        ExposedEventPublisher(table, db, "user-ALICE-conversation-2")
+            .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 3) }))
+
+        val aliceEvents = StreamingExposedEventSource(table, db, "user-ALICE-conversation-%", StreamIdMatcher.LIKE)
+            .fetchEventsAfter().toList()
+        val bobEvents = StreamingExposedEventSource(table, db, "user-BOB-conversation-%", StreamIdMatcher.LIKE)
+            .fetchEventsAfter().toList()
+
+        assertEquals(2, aliceEvents.size)
+        assertEquals(1, bobEvents.size)
+    }
+
+    @Test
+    fun `Regex matching event stream`() = execWithTable { db, table ->
+        ExposedEventPublisher(table, db, "user-ALICE-conversation-1")
+            .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 1) }))
+
+        ExposedEventPublisher(table, db, "user-BOB-conversation-1")
+            .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 2) }))
+
+        ExposedEventPublisher(table, db, "user-ALICE-conversation-2")
+            .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 3) }))
+
+        val aliceEvents = StreamingExposedEventSource(table, db, "^user-ALICE-conversation-.*", StreamIdMatcher.REGEX)
+            .fetchEventsAfter().toList()
+        val bobEvents = StreamingExposedEventSource(table, db, "^user-BOB-conversation-.*", StreamIdMatcher.REGEX)
+            .fetchEventsAfter().toList()
+
+        assertEquals(2, aliceEvents.size)
+        assertEquals(1, bobEvents.size)
+    }
 
 }

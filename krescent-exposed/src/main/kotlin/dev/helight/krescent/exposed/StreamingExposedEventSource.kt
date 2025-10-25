@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import kotlin.math.min
@@ -20,6 +21,7 @@ class StreamingExposedEventSource(
     val table: KrescentTable,
     val database: Database,
     val streamId: String? = null,
+    val streamIdMatcher: StreamIdMatcher = StreamIdMatcher.EQ,
     val batchSize: Int = 20,
     val pollingDelay: Long = 500L,
 ) : StreamingEventSource {
@@ -39,17 +41,23 @@ class StreamingExposedEventSource(
         }
     }
 
+    private fun Query.withStreamIdFilter(): Query {
+        return when (streamId) {
+            null -> this
+            else -> when (streamIdMatcher) {
+                StreamIdMatcher.EQ -> this.where { table.streamId eq streamId }
+                StreamIdMatcher.LIKE -> this.where { table.streamId like streamId }
+                StreamIdMatcher.REGEX -> this.where { table.streamId regexp streamId }
+            }
+        }
+    }
+
     private suspend fun peakEnd(): ExposedStreamingToken {
         return jdbcSuspendTransaction(database) {
             val last = table
                 .select(table.id)
                 .orderBy(table.id, SortOrder.DESC)
-                .let {
-                    when (streamId) {
-                        null -> it
-                        else -> it.where { table.streamId eq streamId }
-                    }
-                }
+                .withStreamIdFilter()
                 .limit(1)
                 .firstOrNull()
             when (last) {
@@ -76,12 +84,11 @@ class StreamingExposedEventSource(
             else -> min(batchSize, maxSize)
         }
         val list = jdbcSuspendTransaction(database) {
-            token.begin(table).let {
-                when (streamId) {
-                    null -> it
-                    else -> it.where { table.streamId eq streamId }
-                }
-            }.limit(actualBatchSize).map(::mapRowToPair).toList()
+            token.begin(table)
+                .withStreamIdFilter()
+                .limit(actualBatchSize)
+                .map(::mapRowToPair)
+                .toList()
         }
         val endToken = list.lastOrNull()?.second ?: peakEnd()
         return BatchResult(
