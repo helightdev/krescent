@@ -67,12 +67,14 @@ class FlowBuffer<T> {
  * @param first The first flow to collect
  * @param second The second flow to collect
  * @param activateCallback A callback to be called when both flows are collecting values
+ * @param liveCallback A callback to be called when the flow switches to live mode
  */
 @OptIn(ExperimentalAtomicApi::class)
 fun <T> joinSequentialFlows(
     first: Flow<T>,
     second: Flow<T>,
     activateCallback: () -> Unit = { },
+    liveCallback: () -> Unit = { },
 ): Flow<T> = channelFlow {
     val mutex = Mutex()
     val secondBuffer = ArrayDeque<T>()
@@ -101,8 +103,68 @@ fun <T> joinSequentialFlows(
             send(secondBuffer.removeFirst())
         }
         switchToLive = true
+        liveCallback()
     }
     secondJob.join()
+}
+
+/**
+ * Creates a backfilling flow with a live tail from two flows.
+ * The `live` flow will be buffered until the `catchup` flow is fully collected.
+ * Once the `catchup` flow is complete, the buffered values from the `live` flow will be sent,
+ * followed by any new values from the `live` flow.
+ *
+ * @param catchup The flow to backfill from
+ * @param live The live flow to collect from
+ * @param comparator A comparator used for deduplication of values by age or position
+ * @param activateCallback A callback to be called when both flows are collecting values
+ * @param liveCallback A callback to be called when the flow switches to live mode
+ */
+fun <T> createCatchupFlow(
+    catchup: Flow<T>,
+    live: Flow<T>,
+    comparator: Comparator<T>,
+    activateCallback: () -> Unit = { },
+    liveCallback: () -> Unit = { },
+): Flow<T> = channelFlow {
+    val mutex = Mutex()
+    val liveBuffer = mutableListOf<T>()
+    var lastCatchup: T? = null
+    var switchToLive = false
+
+    val catchupJob = launch {
+        catchup.collect { value ->
+            send(value)
+            lastCatchup = value
+        }
+    }
+    val liveJob = launch {
+        live.collect { value ->
+            mutex.withLock {
+                if (switchToLive) {
+                    send(value)
+                } else {
+                    liveBuffer.add(value)
+                }
+            }
+        }
+    }
+    activateCallback()
+    catchupJob.join()
+    mutex.withLock {
+        if (liveBuffer.isNotEmpty()) {
+            if (lastCatchup != null) {
+                liveBuffer.removeAll { comparator.compare(it, lastCatchup) <= 0 }
+            }
+        }
+        for (value in liveBuffer) {
+            send(value)
+        }
+        liveBuffer.clear()
+        switchToLive = true
+        liveCallback()
+    }
+    liveJob.join()
 }
 
 /**

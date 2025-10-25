@@ -5,11 +5,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.Instant
 
 /**
- * Interface for an event source that provides a replayable stream of events.
+ * Interface for an event source that provides access to stored events.
  * Supports token-based positioning for fetching events.
  */
-interface StreamingEventSource {
-
+interface StoredEventSource {
     /**
      * Gets a token for the head of the stream, which is *before* the first event in the stream.
      * Fetching after the head token will return the first event in the stream.
@@ -40,8 +39,18 @@ interface StreamingEventSource {
      * @param limit Maximum number of events to fetch, null for no limit
      * @return A pair of the flow of events and the updated token for the next fetch
      */
-    suspend fun fetchEventsAfter(token: StreamingToken<*>? = null, limit: Int? = null): Flow<Pair<EventMessage, StreamingToken<*>>>
+    suspend fun fetchEventsAfter(
+        token: StreamingToken<*>? = null,
+        limit: Int? = null,
+    ): Flow<Pair<EventMessage, StreamingToken<*>>>
 
+}
+
+/**
+ * Interface for an event source that provides a replayable stream of events.
+ * Supports token-based positioning for fetching events.
+ */
+interface StreamingEventSource : StoredEventSource {
     /**
      * Creates a flow of all events in the stream starting from the specified token.
      * Then it will continue to stream new events as they are published.
@@ -52,7 +61,7 @@ interface StreamingEventSource {
     suspend fun streamEvents(startToken: StreamingToken<*>? = null): Flow<Pair<EventMessage, StreamingToken<*>>>
 }
 
-interface ExtendedQueryableStreamingEventSource : StreamingEventSource {
+interface ExtendedQueryableStoredEventSource : StoredEventSource {
     /**
      * Gets a token pointing before the first event at or after the specified timestamp.
      *
@@ -68,3 +77,4 @@ interface ExtendedQueryableStreamingEventSource : StreamingEventSource {
     suspend fun getTokenForEventId(eventId: String): StreamingToken<*>?
 
 }
+

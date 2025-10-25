@@ -22,7 +22,9 @@ plugins {
 include(":krescent-core")
 include(":krescent-kurrent")
 include(":krescent-mongo")
+include(":krescent-exposed")
 
+include(":krescent-test")
 include(":benchmarks")
 
 rootProject.name = "krescent"

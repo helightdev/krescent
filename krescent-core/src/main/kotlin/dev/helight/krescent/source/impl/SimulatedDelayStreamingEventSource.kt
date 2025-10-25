@@ -46,6 +46,7 @@ class SimulatedDelayStreamingEventSource(
                     delay(latency)
                     currentBatchSize = 0
                 }
+                ++currentBatchSize
                 send(event)
             }
         }

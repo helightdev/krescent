@@ -1,28 +1,21 @@
 package dev.helight.krescent.kurrent
 
-import dev.helight.krescent.bufferInMemory
-import dev.helight.krescent.event.EventMessage
-import dev.helight.krescent.event.logging.ConsoleLoggingEventStreamProcessor.Companion.consoleLog
+import dev.helight.krescent.source.EventPublisher
+import dev.helight.krescent.source.StreamingEventSource
+import dev.helight.krescent.test.StreamingEventSourceContract
 import io.kurrent.dbclient.DeleteStreamOptions
 import io.kurrent.dbclient.KurrentDBClient
 import io.kurrent.dbclient.KurrentDBConnectionString
 import io.kurrent.dbclient.UserCredentials
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.*
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.Duration
-import kotlin.test.Test
-import kotlin.test.assertTrue
 
 @Testcontainers
-class KurrentEventSourceTest {
+class KurrentEventSourceTest : StreamingEventSourceContract {
 
     companion object {
 
@@ -37,15 +30,15 @@ class KurrentEventSourceTest {
 
     }
 
-    private fun runWithTestStream(block: suspend CoroutineScope.(KurrentDBClient, KurrentEventSource) -> Unit) =
+    override fun execWithStreamingSource(block: suspend CoroutineScope.(StreamingEventSource, EventPublisher) -> Unit) =
         runBlocking {
             val client = KurrentDBClient.create(
                 KurrentDBConnectionString.parseOrThrow(connectionString),
             )
-            val eventSource = KurrentEventSource(client, testStreamId, testCredentials)
-
+            val streamName = "kurrent-test-${java.util.UUID.randomUUID()}"
+            val eventSource = KurrentEventSource(client, streamName, testCredentials)
             try {
-                block(client, eventSource)
+                block(eventSource, eventSource)
             } finally {
                 try {
                     client.deleteStream(
@@ -59,105 +52,5 @@ class KurrentEventSourceTest {
             }
 
         }
-
-    @Test
-    fun `Fetch Empty Stream`() = runWithTestStream { client, eventSource ->
-        val otherSource = KurrentEventSource(client, "other-stream", testCredentials)
-        val fetched = otherSource.fetchEventsAfter().toList()
-        assertTrue(fetched.isEmpty())
-
-        val job = launch {
-            otherSource.streamEvents().collect { }
-        }
-        delay(100)
-        job.cancel()
-    }
-
-    @Test
-    fun `Write and Resolve Events`() = runWithTestStream { client, eventSource ->
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 1)
-        }))
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 2)
-        }))
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 3)
-        }))
-
-        val events = eventSource.fetchEventsAfter(eventSource.getHeadToken()).toList()
-        events.map { it.first }.consoleLog()
-        assertEquals(3, events.size)
-    }
-
-    @Test
-    fun `Write and listen to Events`() = runWithTestStream { client, eventSource ->
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 1)
-        }))
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 2)
-        }))
-        val buffer = eventSource.streamEvents().bufferInMemory(this)
-        delay(100)
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 3)
-        }))
-        delay(100)
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 4)
-        }))
-        delay(500)
-        val timeline = buffer.stop()
-        println(timeline)
-        assertEquals(4, timeline.size)
-        assertEquals(1, timeline[0].first.payload.jsonObject["number"]?.jsonPrimitive?.int)
-        assertEquals(2, timeline[1].first.payload.jsonObject["number"]?.jsonPrimitive?.int)
-        assertEquals(3, timeline[2].first.payload.jsonObject["number"]?.jsonPrimitive?.int)
-        assertEquals(4, timeline[3].first.payload.jsonObject["number"]?.jsonPrimitive?.int)
-    }
-
-    @Test
-    fun `Listen at the tail after events have already been inserted`() = runWithTestStream { client, eventSource ->
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 1)
-        }))
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 2)
-        }))
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 3)
-        }))
-        val buffer = eventSource.streamEvents(eventSource.getTailToken()).bufferInMemory(this)
-        delay(100)
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 4)
-        }))
-        delay(500)
-        val timeline = buffer.stop()
-        assertEquals(1, timeline.size)
-        assertEquals(4, timeline[0].first.payload.jsonObject["number"]?.jsonPrimitive?.int)
-    }
-
-    @Test
-    fun `Read after a specific revision`() = runWithTestStream { client, eventSource ->
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 1)
-        }))
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 2)
-        }))
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 3)
-        }))
-        eventSource.publish(EventMessage(type = "my-type", payload = buildJsonObject {
-            put("number", 4)
-        }))
-        val first = eventSource.fetchEventsAfter(eventSource.getHeadToken(), 2).toList()
-        val buffer = eventSource.fetchEventsAfter(first.last().component2()).toList()
-        assertEquals(2, buffer.size)
-        assertEquals(3, buffer[0].first.payload.jsonObject["number"]?.jsonPrimitive?.int)
-        assertEquals(4, buffer[1].first.payload.jsonObject["number"]?.jsonPrimitive?.int)
-    }
 
 }

@@ -8,11 +8,13 @@ plugins {
 
 dependencies {
     // Apply the kotlinx bundle of dependencies from the version catalog (`gradle/libs.versions.toml`).
+    implementation(libs.bundles.exposed)
     implementation(libs.bundles.kotlinxEcosystem)
-    api(libs.bundles.kurrent)
     implementation(project(":krescent-core"))
 
     testImplementation(kotlin("test"))
-    testImplementation(libs.bundles.testContainers)
     testImplementation(project(":krescent-test"))
+    testImplementation(libs.postgresql)
+    testImplementation(libs.bundles.testContainers)
+
 }

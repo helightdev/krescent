@@ -23,8 +23,10 @@
             <option value="$PROJECT_DIR$/benchmarks" />
             <option value="$PROJECT_DIR$/buildSrc" />
             <option value="$PROJECT_DIR$/krescent-core" />
+            <option value="$PROJECT_DIR$/krescent-exposed" />
             <option value="$PROJECT_DIR$/krescent-kurrent" />
             <option value="$PROJECT_DIR$/krescent-mongo" />
+            <option value="$PROJECT_DIR$/krescent-test" />
           </set>
         </option>
       </GradleProjectSettings>

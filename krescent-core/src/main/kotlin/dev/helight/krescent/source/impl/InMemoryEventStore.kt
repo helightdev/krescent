@@ -2,10 +2,7 @@ package dev.helight.krescent.source.impl
 
 import dev.helight.krescent.event.EventMessage
 import dev.helight.krescent.joinSequentialFlows
-import dev.helight.krescent.source.EventPublisher
-import dev.helight.krescent.source.ExtendedQueryableStreamingEventSource
-import dev.helight.krescent.source.StreamingToken
-import dev.helight.krescent.source.SubscribingEventSource
+import dev.helight.krescent.source.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -17,7 +14,7 @@ import java.nio.charset.StandardCharsets
 
 class InMemoryEventStore(
     private val events: MutableList<EventMessage> = mutableListOf(),
-) : ExtendedQueryableStreamingEventSource, SubscribingEventSource, EventPublisher {
+) : StreamingEventSource, ExtendedQueryableStoredEventSource, SubscribingEventSource, EventPublisher {
 
     constructor(vararg events: EventMessage) : this(events.toMutableList())
 
