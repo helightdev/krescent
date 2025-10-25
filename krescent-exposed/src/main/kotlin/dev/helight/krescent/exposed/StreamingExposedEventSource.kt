@@ -9,12 +9,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
-import kotlinx.datetime.toDeprecatedInstant
-import org.jetbrains.exposed.v1.core.ResultRow
-import org.jetbrains.exposed.v1.core.SortOrder
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SortOrder
 import kotlin.math.min
 import kotlin.time.ExperimentalTime
 
@@ -66,7 +63,7 @@ class StreamingExposedEventSource(
         val event = EventMessage(
             id = row[table.uid].toString(),
             type = row[table.type],
-            timestamp = row[table.timestamp].toDeprecatedInstant(),
+            timestamp = row[table.timestamp],
             payload = row[table.data],
         )
         val token = ExposedStreamingToken.PositionToken(row[table.id].value)

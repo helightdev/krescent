@@ -2,9 +2,8 @@ package dev.helight.krescent.exposed
 
 import dev.helight.krescent.event.EventMessage
 import dev.helight.krescent.source.EventPublisher
-import kotlinx.datetime.toStdlibInstant
-import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.insert
 import java.util.*
 import kotlin.time.ExperimentalTime
 
@@ -20,7 +19,7 @@ class ExposedEventPublisher(
                 it[uid] = UUID.fromString(event.id)
                 it[streamId] = this@ExposedEventPublisher.streamId
                 it[type] = event.type
-                it[timestamp] = event.timestamp.toStdlibInstant()
+                it[timestamp] = event.timestamp
                 it[data] = event.payload
             }
         }

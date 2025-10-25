@@ -4,11 +4,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
-import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.Transaction
+import org.jetbrains.exposed.sql.transactions.transaction
 
-suspend fun <T> jdbcSuspendTransaction(database: Database, statement: suspend JdbcTransaction.() -> T): T =
+suspend fun <T> jdbcSuspendTransaction(database: Database, statement: suspend Transaction.() -> T): T =
     coroutineScope {
         async(Dispatchers.IO) {
             transaction(database) {

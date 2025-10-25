@@ -7,7 +7,7 @@ kurrentClient = "1.0.1"
 orgReactiveStream = "1.0.4"
 mongoDriver = "5.5.0"
 testContainers = "1.21.0"
-exposed = "1.0.0-rc-1"
+exposed = "0.59.0"
 postgresql = "42.7.3"
 
 [libraries]

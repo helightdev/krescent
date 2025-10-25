@@ -2,11 +2,11 @@ package dev.helight.krescent.exposed
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
-import org.jetbrains.exposed.v1.datetime.KotlinInstantColumnType
-import org.jetbrains.exposed.v1.jdbc.Database
-import org.jetbrains.exposed.v1.jdbc.SchemaUtils
-import org.jetbrains.exposed.v1.json.json
+import org.jetbrains.exposed.dao.id.LongIdTable
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.json.json
+import org.jetbrains.exposed.sql.kotlin.datetime.KotlinInstantColumnType
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
