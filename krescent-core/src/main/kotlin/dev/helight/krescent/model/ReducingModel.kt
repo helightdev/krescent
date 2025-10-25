@@ -29,7 +29,7 @@ interface ReducingModel<S : Any> {
      * Per default, this uses reflections to find the proper serializer for the current state class.
      */
     val serializer: KSerializer<Any>
-        get() = Json.Default.serializersModule.serializer(currentState::class.java)
+        get() = Json.serializersModule.serializer(currentState::class.java)
 
     /**
      * Reduces the current state with the given event and returns the new state.
@@ -65,14 +65,14 @@ interface ReducingModel<S : Any> {
 
         override suspend fun createCheckpoint(bucket: CheckpointBucket) {
             val serializer = model.serializer
-            bucket["state"] = Json.Default.encodeToJsonElement(serializer, model.currentState)
+            bucket["state"] = Json.encodeToJsonElement(serializer, model.currentState)
         }
 
         @Suppress("UNCHECKED_CAST")
         override suspend fun restoreCheckpoint(bucket: CheckpointBucket) {
             val data = bucket["state"] ?: error("No recorded state found in checkpoint bucket")
             val serializer = model.serializer
-            model.currentState = Json.Default.decodeFromJsonElement(serializer, data) as S
+            model.currentState = Json.decodeFromJsonElement(serializer, data) as S
         }
     }
 }
@@ -93,7 +93,7 @@ abstract class ReducingWriteModel<S : Any>(
     namespace: String,
     revision: Int,
     catalog: EventCatalog,
-    source: StreamingEventSource,
+    source: StreamingEventSource? = null,
     publisher: EventPublisher? = null,
     configure: suspend EventModelBuilder.() -> Unit = { },
 ) : WriteModelBase(namespace, revision, catalog, source, publisher, configure), ReducingModel<S> {
