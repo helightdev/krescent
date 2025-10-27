@@ -57,6 +57,14 @@ publishing {
                 password = project.findProperty("gpr.key")?.toString() ?: System.getenv("TOKEN")
             }
         }
+        maven {
+            name = "Averix"
+            url = uri("https://repo.averix.tech/repository/krescent/")
+            credentials {
+                username = project.findProperty("averix.user")?.toString() ?: System.getenv("AVERIX_USER")
+                password = project.findProperty("averix.key")?.toString() ?: System.getenv("AVERIX_KEY")
+            }
+        }
     }
 }
 

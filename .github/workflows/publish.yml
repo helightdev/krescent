@@ -30,4 +30,6 @@ jobs:
         env:
           USERNAME: ${{ github.actor }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AVERIX_USER: ${{ secrets.AVERIX_USER }}
+          AVERIX_KEY: ${{ secrets.AVERIX_KEY }}
           BUILD_VERSION: ${{ github.ref_name }}
