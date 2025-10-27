@@ -8,7 +8,7 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.transactions.transaction
 
-suspend fun <T> jdbcSuspendTransaction(database: Database, statement: suspend Transaction.() -> T): T =
+internal suspend fun <T> jdbcSuspendTransaction(database: Database, statement: suspend Transaction.() -> T): T =
     coroutineScope {
         async(Dispatchers.IO) {
             transaction(database) {
