@@ -5,6 +5,9 @@ import dev.helight.krescent.source.EventSourceConsumer
 import dev.helight.krescent.source.EventSourcingStrategy
 import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.source.StreamingToken
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import java.util.logging.Logger
 
@@ -27,25 +30,35 @@ class CheckpointingEventSourceConsumer(
         var lastPosition: StreamingToken<*>? = lastCheckpoint?.position?.let {
             source.deserializeToken(it)
         }
-        strategy.source(source, lastPosition, object : EventMessageStreamProcessor {
-            override suspend fun process(
-                message: EventMessage,
-                position: StreamingToken<*>,
-            ) {
-                consumer.process(message, position)
-                val tickerResult = checkpointStrategy.tick(message, lastCheckpoint)
-                if (tickerResult) {
-                    val checkpoint = checkpoint(position)
-                    checkpointStorage.storeCheckpoint(checkpoint)
-                    lastCheckpoint = checkpoint // TODO: Why is not used per lint? This isn't closed and should work
+        try {
+            strategy.source(source, lastPosition, object : EventMessageStreamProcessor {
+                override suspend fun process(
+                    message: EventMessage,
+                    position: StreamingToken<*>,
+                ) {
+                    consumer.process(message, position)
+                    val tickerResult = checkpointStrategy.tick(message, lastCheckpoint)
+                    if (tickerResult) {
+                        val checkpoint = checkpoint(position)
+                        checkpointStorage.storeCheckpoint(checkpoint)
+                        lastCheckpoint = checkpoint // TODO: Why is not used per lint? This isn't closed and should work
+                    }
+                    lastPosition = position
                 }
-                lastPosition = position
-            }
 
-            override suspend fun forwardSystemEvent(event: Event) {
-                consumer.forwardSystemEvent(event)
+                override suspend fun forwardSystemEvent(event: Event) {
+                    consumer.forwardSystemEvent(event)
+                }
+            })
+        } catch (e: CancellationException) {
+            withContext(NonCancellable) {
+                if (checkpointStrategy.tickGracefulTermination() && lastPosition != null) {
+                    val checkpoint = checkpoint(lastPosition)
+                    checkpointStorage.storeCheckpoint(checkpoint)
+                }
             }
-        })
+            throw e
+        }
 
         if (checkpointStrategy.tickGracefulTermination() && lastPosition != null) {
             val checkpoint = checkpoint(lastPosition)
