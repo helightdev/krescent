@@ -8,9 +8,9 @@ import java.util.*
 import kotlin.time.ExperimentalTime
 
 class ExposedEventPublisher(
-    val table: KrescentTable,
     val database: Database,
     val streamId: String,
+    val table: KrescentEventsTable = KrescentEventsTable(),
 ) : EventPublisher {
     @OptIn(ExperimentalTime::class)
     override suspend fun publish(event: EventMessage) {

@@ -1,55 +1,56 @@
 package dev.helight.krescent.exposed
 
 import dev.helight.krescent.event.EventMessage
-import dev.helight.krescent.source.StreamingEventSource
+import dev.helight.krescent.source.StoredEventSource
 import dev.helight.krescent.source.StreamingToken
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flow
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.Query
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.regexp
 import kotlin.math.min
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
-class StreamingExposedEventSource(
-    val table: KrescentTable,
+class ExposedEventSource(
     val database: Database,
+    val table: KrescentEventsTable = KrescentEventsTable(),
     val streamId: String? = null,
     val streamIdMatcher: StreamIdMatcher = StreamIdMatcher.EQ,
+    val eventFilter: StreamEventFilter? = null,
     val batchSize: Int = 20,
-    val pollingDelay: Long = 500L,
-) : StreamingEventSource {
+) : StoredEventSource {
     override suspend fun getHeadToken(): StreamingToken<*> {
         return ExposedStreamingToken.HeadToken()
     }
 
-    override suspend fun getTailToken(): StreamingToken<*> {
-        return ExposedStreamingToken.TailToken()
-    }
+    override suspend fun getTailToken(): StreamingToken<*> = peakEnd()
 
     override suspend fun deserializeToken(encoded: String): StreamingToken<*> {
         return when (encoded) {
             "HEAD" -> ExposedStreamingToken.HeadToken()
-            "TAIL" -> ExposedStreamingToken.TailToken()
             else -> ExposedStreamingToken.PositionToken(encoded.toLong())
         }
     }
 
-    private fun Query.withStreamIdFilter(): Query {
-        return when (streamId) {
-            null -> this
+    private fun Query.withFilterClause(): Query {
+        when (streamId) {
+            null -> null
             else -> when (streamIdMatcher) {
-                StreamIdMatcher.EQ -> this.where { table.streamId eq streamId }
-                StreamIdMatcher.LIKE -> this.where { table.streamId like streamId }
-                StreamIdMatcher.REGEX -> this.where { table.streamId regexp streamId }
+                StreamIdMatcher.EQ -> table.streamId eq streamId
+                StreamIdMatcher.LIKE -> table.streamId like streamId
+                StreamIdMatcher.REGEX -> table.streamId regexp streamId
             }
-        }
+        }?.let { andWhere { it } }
+
+        when (eventFilter) {
+            null -> null
+            else -> table.type inList eventFilter.eventNames
+        }?.let { andWhere { it } }
+
+        return this
     }
 
     private suspend fun peakEnd(): ExposedStreamingToken {
@@ -57,7 +58,7 @@ class StreamingExposedEventSource(
             val last = table
                 .select(table.id)
                 .orderBy(table.id, SortOrder.DESC)
-                .withStreamIdFilter()
+                .withFilterClause()
                 .limit(1)
                 .firstOrNull()
             when (last) {
@@ -85,17 +86,25 @@ class StreamingExposedEventSource(
         }
         val list = jdbcSuspendTransaction(database) {
             token.begin(table)
-                .withStreamIdFilter()
+                .withFilterClause()
                 .limit(actualBatchSize)
                 .map(::mapRowToPair)
                 .toList()
         }
-        val endToken = list.lastOrNull()?.second ?: peakEnd()
-        return BatchResult(
-            events = list,
-            endToken = endToken,
-            reachedEnd = list.size < actualBatchSize || endToken is ExposedStreamingToken.TailToken,
-        )
+        val endToken = list.lastOrNull()?.second
+        return if (endToken == null) {
+            BatchResult(
+                events = list,
+                endToken = peakEnd(),
+                reachedEnd = true
+            )
+        } else {
+            BatchResult(
+                events = list,
+                endToken = endToken,
+                reachedEnd = list.size < actualBatchSize
+            )
+        }
     }
 
     override suspend fun fetchEventsAfter(
@@ -107,7 +116,6 @@ class StreamingExposedEventSource(
             is ExposedStreamingToken -> token
             else -> throw IllegalArgumentException("Token must be of type ExposedStreamingToken")
         }
-        if (parsedToken is ExposedStreamingToken.TailToken) return emptyFlow()
         var currentToken = parsedToken
         var remaining = limit?.toLong() ?: Long.MAX_VALUE
         return channelFlow {
@@ -122,29 +130,6 @@ class StreamingExposedEventSource(
             }
         }
     }
-
-    override suspend fun streamEvents(startToken: StreamingToken<*>?): Flow<Pair<EventMessage, StreamingToken<*>>> =
-        coroutineScope {
-            val parsedToken = when (startToken) {
-                null -> ExposedStreamingToken.HeadToken()
-                is ExposedStreamingToken.TailToken -> peakEnd()
-                is ExposedStreamingToken -> startToken
-                else -> throw IllegalArgumentException("Token must be of type ExposedStreamingToken")
-            }
-            var currentToken: ExposedStreamingToken = parsedToken
-            return@coroutineScope flow {
-                while (true) {
-                    val batch = fetchBatch(currentToken)
-                    for (event in batch.events) {
-                        emit(event)
-                    }
-                    currentToken = batch.endToken
-                    if (batch.reachedEnd) {
-                        delay(pollingDelay)
-                    }
-                }
-            }
-        }
 
     private data class BatchResult(
         val events: List<Pair<EventMessage, StreamingToken<*>>>,

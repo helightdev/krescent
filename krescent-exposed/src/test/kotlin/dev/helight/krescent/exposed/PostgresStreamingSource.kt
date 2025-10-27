@@ -1,13 +1,17 @@
 package dev.helight.krescent.exposed
 
+import dev.helight.krescent.event.Event
 import dev.helight.krescent.event.EventMessage
+import dev.helight.krescent.event.buildEventCatalog
 import dev.helight.krescent.source.EventPublisher
+import dev.helight.krescent.source.PollingStreamingEventSource.Companion.polling
 import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.test.StreamingEventSourceContract
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.jetbrains.exposed.sql.Database
@@ -41,10 +45,10 @@ class PostgresStreamingSource : StreamingEventSourceContract {
         )
     }
 
-    fun execWithTable(block: suspend CoroutineScope.(Database, KrescentTable) -> Unit) = runBlocking {
+    fun execWithTable(block: suspend CoroutineScope.(Database, KrescentEventsTable) -> Unit) = runBlocking {
         val db = connect()
         val tableName = "krescent_${UUID.randomUUID()}"
-        val table = KrescentTable(tableName)
+        val table = KrescentEventsTable(tableName)
         table.create(db)
         try {
             this.block(db, table)
@@ -56,26 +60,26 @@ class PostgresStreamingSource : StreamingEventSourceContract {
 
     override fun execWithStreamingSource(block: suspend CoroutineScope.(StreamingEventSource, EventPublisher) -> Unit) =
         execWithTable { db, table ->
-            val source = StreamingExposedEventSource(table, db, pollingDelay = 100L)
-            val publisher = ExposedEventPublisher(table, db, "default")
+            val source = ExposedEventSource(db, table).polling()
+            val publisher = ExposedEventPublisher(db, "default", table)
             this.block(source, publisher)
         }
 
 
     @Test
     fun `Like matching event stream`() = execWithTable { db, table ->
-        ExposedEventPublisher(table, db, "user-ALICE-conversation-1")
+        ExposedEventPublisher(db, "user-ALICE-conversation-1", table)
             .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 1) }))
 
-        ExposedEventPublisher(table, db, "user-BOB-conversation-1")
+        ExposedEventPublisher(db, "user-BOB-conversation-1", table)
             .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 2) }))
 
-        ExposedEventPublisher(table, db, "user-ALICE-conversation-2")
+        ExposedEventPublisher(db, "user-ALICE-conversation-2", table)
             .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 3) }))
 
-        val aliceEvents = StreamingExposedEventSource(table, db, "user-ALICE-conversation-%", StreamIdMatcher.LIKE)
+        val aliceEvents = ExposedEventSource(db, table, "user-ALICE-conversation-%", StreamIdMatcher.LIKE)
             .fetchEventsAfter().toList()
-        val bobEvents = StreamingExposedEventSource(table, db, "user-BOB-conversation-%", StreamIdMatcher.LIKE)
+        val bobEvents = ExposedEventSource(db, table, "user-BOB-conversation-%", StreamIdMatcher.LIKE)
             .fetchEventsAfter().toList()
 
         assertEquals(2, aliceEvents.size)
@@ -84,22 +88,57 @@ class PostgresStreamingSource : StreamingEventSourceContract {
 
     @Test
     fun `Regex matching event stream`() = execWithTable { db, table ->
-        ExposedEventPublisher(table, db, "user-ALICE-conversation-1")
+        ExposedEventPublisher(db, "user-ALICE-conversation-1", table)
             .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 1) }))
 
-        ExposedEventPublisher(table, db, "user-BOB-conversation-1")
+        ExposedEventPublisher(db, "user-BOB-conversation-1", table)
             .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 2) }))
 
-        ExposedEventPublisher(table, db, "user-ALICE-conversation-2")
+        ExposedEventPublisher(db, "user-ALICE-conversation-2", table)
             .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 3) }))
 
-        val aliceEvents = StreamingExposedEventSource(table, db, "^user-ALICE-conversation-.*", StreamIdMatcher.REGEX)
+        val aliceEvents = ExposedEventSource(db, table, "^user-ALICE-conversation-.*", StreamIdMatcher.REGEX)
             .fetchEventsAfter().toList()
-        val bobEvents = StreamingExposedEventSource(table, db, "^user-BOB-conversation-.*", StreamIdMatcher.REGEX)
+        val bobEvents = ExposedEventSource(db, table, "^user-BOB-conversation-.*", StreamIdMatcher.REGEX)
             .fetchEventsAfter().toList()
 
         assertEquals(2, aliceEvents.size)
         assertEquals(1, bobEvents.size)
     }
 
+    @Test
+    fun `Simple event filter using the regex`() = execWithTable { db, table ->
+        val publisher = ExposedEventPublisher(db, "event-stream", table)
+        publisher.publish(exampleCatalog.create(EventA(1)))
+        publisher.publish(exampleCatalog.create(EventB(2)))
+        publisher.publish(exampleCatalog.create(EventC(3)))
+        publisher.publish(exampleCatalog.create(EventC(4)))
+
+        val regexReceived = ExposedEventSource(
+            db, table, "event-stream",
+            eventFilter = StreamEventFilter.fromRegex(exampleCatalog, "^main.*$".toRegex())
+        ).fetchEventsAfter().toList()
+        assertEquals(2, regexReceived.count())
+
+        val listReceived = ExposedEventSource(
+            db, table, "event-stream",
+            eventFilter = StreamEventFilter.fromTypes(exampleCatalog, EventB::class, EventC::class),
+        ).fetchEventsAfter().toList()
+        assertEquals(3, listReceived.count())
+    }
+
+    val exampleCatalog = buildEventCatalog(1) {
+        event<EventA>("main.a")
+        event<EventB>("main.b")
+        event<EventC>("other.c")
+    }
+
+    @Serializable
+    class EventA(val num: Int) : Event()
+
+    @Serializable
+    class EventB(val num: Int) : Event()
+
+    @Serializable
+    class EventC(val num: Int) : Event()
 }
