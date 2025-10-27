@@ -80,7 +80,7 @@ interface ReducingModel<S : Any> {
 /**
  * Gives access to the current state of the [ReducingModel] inside of [block] as `state`.
  */
-inline fun <M : ReducingModel<S>, S, R> M.useState(block: StateContext<S>.() -> R): R {
+inline fun <M : ReducingModel<S>, S : Any, R> M.useState(block: StateContext<S>.() -> R): R {
     return block(StateContext(currentState))
 }
 
