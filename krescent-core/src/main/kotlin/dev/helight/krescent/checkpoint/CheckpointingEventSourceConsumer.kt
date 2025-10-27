@@ -6,6 +6,7 @@ import dev.helight.krescent.source.EventSourcingStrategy
 import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.source.StreamingToken
 import kotlinx.datetime.Clock
+import java.util.logging.Logger
 
 class CheckpointingEventSourceConsumer(
     val namespace: String,
@@ -17,6 +18,8 @@ class CheckpointingEventSourceConsumer(
     val consumer: EventMessageStreamProcessor,
     val rebuildOnInvalidCheckpoint: Boolean = true,
 ) : EventSourceConsumer {
+
+    private val logger = Logger.getLogger("CheckpointingEventSourceConsumer")
 
     @Suppress("UNCHECKED_CAST")
     override suspend fun strategy(strategy: EventSourcingStrategy) {
@@ -55,18 +58,23 @@ class CheckpointingEventSourceConsumer(
 
         // Invalidate outdated checkpoints
         if (lastCheckpoint != null && lastCheckpoint.version != version) {
+            logger.info("Checkpoint version mismatch, expected '$version' but found '${lastCheckpoint.version}'")
             lastCheckpoint = null
+            if (!rebuildOnInvalidCheckpoint) throw CheckpointValidationException()
         }
 
         if (lastCheckpoint != null && !validateCheckpoint(lastCheckpoint)) {
+            logger.info("Checkpoint validation failed for namespace '$namespace'")
             lastCheckpoint = null
             if (!rebuildOnInvalidCheckpoint) throw CheckpointValidationException()
         }
 
         if (lastCheckpoint != null) {
+            logger.info("Valid checkpoint found for namespace '$namespace', restoring state")
             loadCheckpoint(lastCheckpoint)
             consumer.forwardSystemEvent(SystemStreamRestoredEvent)
         } else {
+            logger.info("No valid checkpoint found for namespace '$namespace', starting from scratch")
             consumer.forwardSystemEvent(SystemStreamHeadEvent)
         }
         return lastCheckpoint
