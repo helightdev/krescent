@@ -19,10 +19,13 @@ interface StoredEventSource {
      * Gets a token for the tail of the stream, which is always *at the position* of the last event in the stream.
      * Fetching after the tail token will return no events if no new events are published.
      *
-     * The exact behavior of the tail token is implementation-dependent. You should not assume it to be an actual
-     * token pointing to the last event, more like a marker indicating the end of the stream.
+     * The exact behavior of the tail token is implementation-dependent. If the event source also implements
+     * `StreamingEventSource`, the token may only be symbolic and may always point at the tail of the stream.
+     * If the event source doesn't implement streaming only providing access to stored values, one can expect the tail
+     * token to point to the physical last event so that polling can properly be achieved.
      */
     suspend fun getTailToken(): StreamingToken<*>
+
 
     /**
      * Deserializes the provided encoded string into a Token.
