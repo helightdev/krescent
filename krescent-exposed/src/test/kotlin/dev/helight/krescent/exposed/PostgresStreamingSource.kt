@@ -45,10 +45,10 @@ class PostgresStreamingSource : StreamingEventSourceContract {
         )
     }
 
-    fun execWithTable(block: suspend CoroutineScope.(Database, KrescentEventsTable) -> Unit) = runBlocking {
+    fun execWithTable(block: suspend CoroutineScope.(Database, KrescentEventLogTable) -> Unit) = runBlocking {
         val db = connect()
         val tableName = "krescent_${UUID.randomUUID()}"
-        val table = KrescentEventsTable(tableName)
+        val table = KrescentEventLogTable(tableName)
         table.create(db)
         try {
             this.block(db, table)
@@ -60,7 +60,7 @@ class PostgresStreamingSource : StreamingEventSourceContract {
 
     override fun execWithStreamingSource(block: suspend CoroutineScope.(StreamingEventSource, EventPublisher) -> Unit) =
         execWithTable { db, table ->
-            val source = ExposedEventSource(db, table).polling()
+            val source = ExposedEventSource(db, table = table).polling()
             val publisher = ExposedEventPublisher(db, "default", table)
             this.block(source, publisher)
         }
@@ -77,9 +77,9 @@ class PostgresStreamingSource : StreamingEventSourceContract {
         ExposedEventPublisher(db, "user-ALICE-conversation-2", table)
             .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 3) }))
 
-        val aliceEvents = ExposedEventSource(db, table, "user-ALICE-conversation-%", StreamIdMatcher.LIKE)
+        val aliceEvents = ExposedEventSource(db, "user-ALICE-conversation-%", table, StreamIdMatcher.LIKE)
             .fetchEventsAfter().toList()
-        val bobEvents = ExposedEventSource(db, table, "user-BOB-conversation-%", StreamIdMatcher.LIKE)
+        val bobEvents = ExposedEventSource(db, "user-BOB-conversation-%", table, StreamIdMatcher.LIKE)
             .fetchEventsAfter().toList()
 
         assertEquals(2, aliceEvents.size)
@@ -97,9 +97,9 @@ class PostgresStreamingSource : StreamingEventSourceContract {
         ExposedEventPublisher(db, "user-ALICE-conversation-2", table)
             .publish(EventMessage(type = "created", payload = buildJsonObject { put("number", 3) }))
 
-        val aliceEvents = ExposedEventSource(db, table, "^user-ALICE-conversation-.*", StreamIdMatcher.REGEX)
+        val aliceEvents = ExposedEventSource(db, "^user-ALICE-conversation-.*", table, StreamIdMatcher.REGEX)
             .fetchEventsAfter().toList()
-        val bobEvents = ExposedEventSource(db, table, "^user-BOB-conversation-.*", StreamIdMatcher.REGEX)
+        val bobEvents = ExposedEventSource(db, "^user-BOB-conversation-.*", table, StreamIdMatcher.REGEX)
             .fetchEventsAfter().toList()
 
         assertEquals(2, aliceEvents.size)
@@ -115,13 +115,13 @@ class PostgresStreamingSource : StreamingEventSourceContract {
         publisher.publish(exampleCatalog.create(EventC(4)))
 
         val regexReceived = ExposedEventSource(
-            db, table, "event-stream",
+            db, "event-stream", table,
             eventFilter = StreamEventFilter.fromRegex(exampleCatalog, "^main.*$".toRegex())
         ).fetchEventsAfter().toList()
         assertEquals(2, regexReceived.count())
 
         val listReceived = ExposedEventSource(
-            db, table, "event-stream",
+            db, "event-stream", table,
             eventFilter = StreamEventFilter.fromTypes(exampleCatalog, EventB::class, EventC::class),
         ).fetchEventsAfter().toList()
         assertEquals(3, listReceived.count())

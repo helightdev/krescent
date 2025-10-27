@@ -15,7 +15,7 @@ import org.jetbrains.exposed.sql.upsert
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
-class KrescentEventsTable(tableName: String = "krescent") : LongIdTable(tableName) {
+class KrescentEventLogTable(tableName: String = "krescent") : LongIdTable(tableName) {
     val uid = uuid("uuid").uniqueIndex()
     val streamId = text("streamId").index()
     val type = text("type").index()
@@ -28,11 +28,11 @@ class KrescentEventsTable(tableName: String = "krescent") : LongIdTable(tableNam
     })
 
     suspend fun create(database: Database) {
-        jdbcSuspendTransaction(database) { SchemaUtils.create(this@KrescentEventsTable) }
+        jdbcSuspendTransaction(database) { SchemaUtils.create(this@KrescentEventLogTable) }
     }
 
     suspend fun drop(database: Database) {
-        jdbcSuspendTransaction(database) { SchemaUtils.drop(this@KrescentEventsTable) }
+        jdbcSuspendTransaction(database) { SchemaUtils.drop(this@KrescentEventLogTable) }
     }
 }
 

@@ -16,8 +16,8 @@ import kotlin.time.ExperimentalTime
 @OptIn(ExperimentalTime::class)
 class ExposedEventSource(
     val database: Database,
-    val table: KrescentEventsTable = KrescentEventsTable(),
     val streamId: String? = null,
+    val table: KrescentEventLogTable = KrescentEventLogTable(),
     val streamIdMatcher: StreamIdMatcher = StreamIdMatcher.EQ,
     val eventFilter: StreamEventFilter? = null,
     val batchSize: Int = 20,

@@ -32,7 +32,7 @@ sealed class ExposedStreamingToken : StreamingToken<ExposedStreamingToken> {
     class HeadToken : ExposedStreamingToken()
     data class PositionToken(val pos: Long) : ExposedStreamingToken()
 
-    fun begin(table: KrescentEventsTable): Query {
+    fun begin(table: KrescentEventLogTable): Query {
         val query = table.selectAll()
         return when (this) {
             is HeadToken -> query.orderBy(table.id)

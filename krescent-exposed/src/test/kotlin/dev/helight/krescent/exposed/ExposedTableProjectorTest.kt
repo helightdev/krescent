@@ -51,11 +51,11 @@ class ExposedTableProjectorTest {
         )
     }
 
-    fun execWithTable(block: suspend CoroutineScope.(Database, KrescentEventsTable) -> Unit) = runBlocking {
+    fun execWithTable(block: suspend CoroutineScope.(Database, KrescentEventLogTable) -> Unit) = runBlocking {
         mutex.withLock {
             val db = connect()
             val tableName = "krescent_${UUID.randomUUID()}"
-            val table = KrescentEventsTable(tableName)
+            val table = KrescentEventLogTable(tableName)
             table.create(db)
             try {
                 this.block(db, table)
