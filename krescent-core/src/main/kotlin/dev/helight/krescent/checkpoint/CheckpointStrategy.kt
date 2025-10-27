@@ -23,9 +23,14 @@ object NoCheckpointStrategy : CheckpointStrategy {
 @OptIn(ExperimentalAtomicApi::class)
 class FixedEventRateCheckpointStrategy(
     private val checkpoint: Long,
+    val checkpointOnGracefulTermination: Boolean = true,
 ) : CheckpointStrategy {
 
     private val counter = AtomicLong(0)
+
+    override suspend fun tickGracefulTermination(): Boolean {
+        return checkpointOnGracefulTermination
+    }
 
     override suspend fun tick(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
         return counter.incrementAndFetch() % checkpoint == 0L
@@ -33,7 +38,7 @@ class FixedEventRateCheckpointStrategy(
 }
 
 @Suppress("unused")
-class ManualCheckpointStrategy() : CheckpointStrategy {
+class ManualCheckpointStrategy : CheckpointStrategy {
 
     private var shouldCheckpoint = false
 
@@ -54,7 +59,12 @@ class ManualCheckpointStrategy() : CheckpointStrategy {
 @Suppress("unused")
 class FixedTimeRateCheckpointStrategy(
     private val rate: Duration,
+    val checkpointOnGracefulTermination: Boolean = true,
 ) : CheckpointStrategy {
+
+    override suspend fun tickGracefulTermination(): Boolean {
+        return checkpointOnGracefulTermination
+    }
 
     override suspend fun tick(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
         if (lastCheckpoint == null) return true
@@ -66,6 +76,7 @@ class FixedTimeRateCheckpointStrategy(
 
 @Suppress("unused")
 object AlwaysCheckpointStrategy : CheckpointStrategy {
+
     override suspend fun tick(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
         return true
     }
