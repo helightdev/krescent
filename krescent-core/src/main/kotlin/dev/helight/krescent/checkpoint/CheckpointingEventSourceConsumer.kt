@@ -15,6 +15,7 @@ class CheckpointingEventSourceConsumer(
     val checkpointStorage: CheckpointStorage,
     val checkpointSupports: List<CheckpointSupport>,
     val consumer: EventMessageStreamProcessor,
+    val rebuildOnInvalidCheckpoint: Boolean = true,
 ) : EventSourceConsumer {
 
     @Suppress("UNCHECKED_CAST")
@@ -33,7 +34,7 @@ class CheckpointingEventSourceConsumer(
                 if (tickerResult) {
                     val checkpoint = checkpoint(position)
                     checkpointStorage.storeCheckpoint(checkpoint)
-                    lastCheckpoint = checkpoint
+                    lastCheckpoint = checkpoint // TODO: Why is not used per lint? This isn't closed and should work
                 }
                 lastPosition = position
             }
@@ -57,8 +58,13 @@ class CheckpointingEventSourceConsumer(
             lastCheckpoint = null
         }
 
+        if (lastCheckpoint != null && !validateCheckpoint(lastCheckpoint)) {
+            lastCheckpoint = null
+            if (!rebuildOnInvalidCheckpoint) throw CheckpointValidationException()
+        }
+
         if (lastCheckpoint != null) {
-            load(lastCheckpoint)
+            loadCheckpoint(lastCheckpoint)
             consumer.forwardSystemEvent(SystemStreamRestoredEvent)
         } else {
             consumer.forwardSystemEvent(SystemStreamHeadEvent)
@@ -78,8 +84,14 @@ class CheckpointingEventSourceConsumer(
         )
     }
 
-    private suspend fun load(storedCheckpoint: StoredCheckpoint) {
+    private suspend fun validateCheckpoint(bucket: StoredCheckpoint): Boolean {
+        return checkpointSupports.all { it.validateCheckpoint(bucket.data) }
+    }
+
+    private suspend fun loadCheckpoint(storedCheckpoint: StoredCheckpoint): Boolean {
         checkpointSupports.forEach { it.restoreCheckpoint(storedCheckpoint.data) }
+        return true
     }
 }
 
+class CheckpointValidationException : Exception("Checkpoint validation failed")

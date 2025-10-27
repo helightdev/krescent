@@ -35,6 +35,7 @@ class EventModelBuilder(
     val revision: Int,
     val catalog: EventCatalog,
     val source: StreamingEventSource,
+    var rebuildOnInvalidCheckpoint: Boolean = true,
     private val extensions: MutableList<ModelExtension<*>> = mutableListOf(),
     private var handler: EventStreamProcessor? = null,
 ) : ExtensionAwareBuilder {
@@ -123,7 +124,8 @@ class EventModelBuilder(
                         source = source,
                         checkpointStorage = storage,
                         checkpointSupports = checkpointing,
-                        consumer = consumer
+                        consumer = consumer,
+                        rebuildOnInvalidCheckpoint = rebuildOnInvalidCheckpoint
                     ),
                     doorstep = consumer
                 )
