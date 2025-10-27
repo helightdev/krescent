@@ -143,5 +143,15 @@ interface StreamingEventSourceContract {
         assertEquals(4, buffer[1].first.payload.jsonObject["number"]?.jsonPrimitive?.int)
     }
 
+    @Test
+    fun `Read and write many 100 events`() = execWithStreamingSource { eventSource, publisher ->
+        for (i in 1..100) {
+            publisher.publish(EventMessage(type = "my-type", payload = buildJsonObject {
+                put("number", i)
+            }))
+        }
+        val events = eventSource.fetchEventsAfter().toList()
+        assertEquals(100, events.size)
+    }
 
 }
