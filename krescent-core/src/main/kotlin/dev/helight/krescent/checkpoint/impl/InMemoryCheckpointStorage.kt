@@ -27,6 +27,10 @@ class InMemoryCheckpointStorage : CheckpointStorage {
         return checkpoints[namespace]
     }
 
+    override suspend fun deleteCheckpoint(namespace: String): Unit = mutex.withLock {
+        checkpoints.remove(namespace)
+    }
+
     override suspend fun clearCheckpoints() = mutex.withLock {
         checkpoints.clear()
     }

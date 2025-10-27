@@ -33,6 +33,10 @@ class MongoCheckpointStorage(
         return documentToCheckpoint(document)
     }
 
+    override suspend fun deleteCheckpoint(namespace: String) {
+        collection.deleteOne(Filters.eq("_id", namespace))
+    }
+
     override suspend fun clearCheckpoints() {
         collection.drop()
     }

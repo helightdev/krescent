@@ -22,6 +22,10 @@ class KeyedCheckpointStorage(
         }
     }
 
+    override suspend fun deleteCheckpoint(namespace: String) {
+        delegate.deleteCheckpoint(boxNamespace(namespace))
+    }
+
     override suspend fun clearCheckpoints() {
         error("Clearing checkpoints is not supported in KeyedCheckpointStorage. Use the delegate directly if needed.")
     }
