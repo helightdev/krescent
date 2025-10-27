@@ -2,7 +2,9 @@ package dev.helight.krescent.model
 
 import dev.helight.krescent.event.EventCatalog
 import dev.helight.krescent.source.EventSourcingStrategy
+import dev.helight.krescent.source.StoredEventSource
 import dev.helight.krescent.source.StreamingEventSource
+import dev.helight.krescent.source.UpgradingStreamingEventSource
 import dev.helight.krescent.source.strategy.CatchupSourcingStrategy
 import dev.helight.krescent.source.strategy.NoSourcingStrategy
 import dev.helight.krescent.source.strategy.StreamingSourcingStrategy
@@ -27,14 +29,14 @@ abstract class ReadModelBase(
             model.strategy(strategy)
         }
 
-        suspend fun <M : ReadModelBase> M.catchup(source: StreamingEventSource) =
-            this.strategy(source, CatchupSourcingStrategy())
+        suspend fun <M : ReadModelBase> M.catchup(source: StoredEventSource) =
+            this.strategy(UpgradingStreamingEventSource(source), CatchupSourcingStrategy())
 
         suspend fun <M : ReadModelBase> M.stream(source: StreamingEventSource) =
             this.strategy(source, StreamingSourcingStrategy())
 
-        suspend fun <M : ReadModelBase> M.restoreOnly(source: StreamingEventSource) =
-            this.strategy(source, NoSourcingStrategy())
+        suspend fun <M : ReadModelBase> M.restoreOnly(source: StoredEventSource) =
+            this.strategy(UpgradingStreamingEventSource(source), NoSourcingStrategy())
 
     }
 }
