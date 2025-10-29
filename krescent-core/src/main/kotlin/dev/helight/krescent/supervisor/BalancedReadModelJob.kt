@@ -29,6 +29,7 @@ class BalancedReadModelJob(
     val sourceSupplier: () -> StreamingEventSource = {
         source ?: error("BalancedReadModelJob requires a source or sourceSupplier to be provided")
     },
+    val preventParallelCatchup: Boolean = true,
 ) : ModelJob {
 
     private var currentAttempt = 0
@@ -40,20 +41,24 @@ class BalancedReadModelJob(
     }
 
     override suspend fun onBefore(supervisor: ModelSupervisor) {
-        supervisor.startupMutex.lock(this)
+        if (preventParallelCatchup) supervisor.startupMutex.lock(this)
         lastStart = System.currentTimeMillis()
     }
 
     override suspend fun run(supervisor: ModelSupervisor) {
-        try {
+        if (preventParallelCatchup) try {
             val source = sourceSupplier()
-            modelSupplier().catchup(source)
+            val model = modelSupplier()
+            logger.debug("BalancedReadModelJob starting catchup phase for {}.", model)
+            model.catchup(source)
         } finally {
             supervisor.startupMutex.unlock(this)
         }
 
         val source = sourceSupplier()
-        modelSupplier().stream(source)
+        val model = modelSupplier()
+        logger.debug("BalancedReadModelJob starting streaming phase for {}.", model)
+        model.stream(source)
     }
 
     override suspend fun onExited(supervisor: ModelSupervisor) {
