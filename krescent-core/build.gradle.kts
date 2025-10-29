@@ -9,6 +9,9 @@ plugins {
 dependencies {
     // Apply the kotlinx bundle of dependencies from the version catalog (`gradle/libs.versions.toml`).
     implementation(libs.bundles.kotlinxEcosystem)
+    implementation(libs.slf4jApi)
+
     testImplementation(kotlin("test"))
     testImplementation(project(":krescent-test"))
+    testImplementation(libs.slf4jSimple)
 }

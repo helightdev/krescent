@@ -9,6 +9,7 @@ mongoDriver = "5.5.0"
 testContainers = "1.21.0"
 exposed = "0.59.0"
 postgresql = "42.7.3"
+slf4j = "2.0.9"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -28,6 +29,8 @@ exposedJdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "ex
 exposedJson = { module = "org.jetbrains.exposed:exposed-json", version.ref = "exposed" }
 exposedKotlinDatetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+slf4jApi = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+slf4jSimple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 
 # Libraries can be bundled together for easier import
 [bundles]
