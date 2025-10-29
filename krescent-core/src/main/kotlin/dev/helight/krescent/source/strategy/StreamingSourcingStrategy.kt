@@ -20,7 +20,9 @@ import dev.helight.krescent.source.StreamingToken
  * - [SystemHintBeginTransactionEvent] at the start of the catch-up phase.
  * - [SystemHintEndTransactionEvent] at the end of the catch-up phase, after the live stream has started.
  */
-class StreamingSourcingStrategy: EventSourcingStrategy {
+class StreamingSourcingStrategy(
+    val afterCatchup: suspend () -> Unit = {},
+) : EventSourcingStrategy {
     override suspend fun source(
         source: StreamingEventSource,
         startToken: StreamingToken<*>?,
@@ -37,8 +39,8 @@ class StreamingSourcingStrategy: EventSourcingStrategy {
             consumer.forwardSystemEvent(SystemStreamCaughtUpEvent)
         } finally {
             consumer.forwardSystemEvent(SystemHintEndTransactionEvent)
+            afterCatchup()
         }
-
 
         // Begin streaming events until interrupted
         source.streamEvents(lastToken).collect {
