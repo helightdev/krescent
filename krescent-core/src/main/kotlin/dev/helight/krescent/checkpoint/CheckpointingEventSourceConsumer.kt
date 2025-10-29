@@ -9,7 +9,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
-import java.util.logging.Logger
+import org.slf4j.LoggerFactory
 
 class CheckpointingEventSourceConsumer(
     val namespace: String,
@@ -22,7 +22,7 @@ class CheckpointingEventSourceConsumer(
     val rebuildOnInvalidCheckpoint: Boolean = true,
 ) : EventSourceConsumer {
 
-    private val logger = Logger.getLogger("CheckpointingEventSourceConsumer")
+    private val logger = LoggerFactory.getLogger(CheckpointingEventSourceConsumer::class.java)
 
     @Suppress("UNCHECKED_CAST")
     override suspend fun strategy(strategy: EventSourcingStrategy) {
