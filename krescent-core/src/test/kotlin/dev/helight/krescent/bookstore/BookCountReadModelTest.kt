@@ -7,6 +7,7 @@ import dev.helight.krescent.model.ReducingReadModel
 import dev.helight.krescent.source.impl.InMemoryEventStore
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 
 class BookCountReadModelTest {
@@ -19,7 +20,10 @@ class BookCountReadModelTest {
     }
 }
 
-class BooksAvailableReadModel() : ReducingReadModel<BooksAvailableReadModel.State>(
+class BooksAvailableReadModel(
+    val target: MutableMap<String, Int> = mutableMapOf(),
+    val crashCount: AtomicInteger = AtomicInteger(0),
+) : ReducingReadModel<BooksAvailableReadModel.State>(
     namespace = "books.counts",
     revision = 1,
     catalog = bookstoreEventCatalog,
@@ -57,6 +61,17 @@ class BooksAvailableReadModel() : ReducingReadModel<BooksAvailableReadModel.Stat
         )
 
         else -> state
+    }
+
+    override suspend fun process(event: Event) {
+        if (crashCount.get() > 0) {
+            crashCount.decrementAndGet()
+            error("Simulated crash")
+        }
+
+        super.process(event)
+        target.clear()
+        target.putAll(currentState.available)
     }
 
     @Serializable
