@@ -1,5 +1,6 @@
 package dev.helight.krescent.exposed
 
+import dev.helight.krescent.checkpoint.CheckpointBucket
 import dev.helight.krescent.checkpoint.CheckpointStorage
 import dev.helight.krescent.checkpoint.StoredCheckpoint
 import org.jetbrains.exposed.sql.*
@@ -20,7 +21,7 @@ class ExposedCheckpointStorage(
             it[position] = checkpoint.position
             it[timestamp] = checkpoint.timestamp
             it[version] = checkpoint.version
-            it[data] = checkpoint.data
+            it[data] = checkpoint.data.encodeToByteArray()
         }
     }
 
@@ -31,7 +32,7 @@ class ExposedCheckpointStorage(
                 position = it[table.position],
                 version = it[table.version],
                 timestamp = it[table.timestamp],
-                data = it[table.data]
+                data = CheckpointBucket.fromByteArray(it[table.data])
             )
         }
     }

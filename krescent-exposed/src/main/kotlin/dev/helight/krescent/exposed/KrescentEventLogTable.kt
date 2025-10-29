@@ -2,7 +2,6 @@
 
 package dev.helight.krescent.exposed
 
-import dev.helight.krescent.checkpoint.CheckpointBucket
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import org.jetbrains.exposed.dao.id.LongIdTable
@@ -42,11 +41,7 @@ class KrescentCheckpointTable(name: String = "krescent_checkpoints") : Table(nam
     val version = text("version")
     val position = text("position")
     val timestamp = registerColumn("timestamp", KotlinInstantColumnType()).index()
-    val data = json(
-        name = "data",
-        serialize = { it.encodeToJsonString() },
-        deserialize = { CheckpointBucket.fromJsonString(it) }
-    )
+    val data = binary("data")
 
     override val primaryKey = PrimaryKey(namespace)
 
