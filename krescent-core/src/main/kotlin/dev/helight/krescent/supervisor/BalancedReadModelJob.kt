@@ -1,9 +1,10 @@
 package dev.helight.krescent.supervisor
 
 import dev.helight.krescent.model.ReadModelBase
-import dev.helight.krescent.model.ReadModelBase.Extension.catchup
+import dev.helight.krescent.model.ReadModelBase.Extension.strategy
 import dev.helight.krescent.model.ReadModelBase.Extension.stream
 import dev.helight.krescent.source.StreamingEventSource
+import dev.helight.krescent.source.strategy.StreamingSourcingStrategy
 import org.slf4j.LoggerFactory
 import kotlin.math.min
 import kotlin.math.pow
@@ -46,19 +47,15 @@ class BalancedReadModelJob(
     }
 
     override suspend fun run(supervisor: ModelSupervisor) {
-        if (preventParallelCatchup) try {
-            val source = sourceSupplier()
-            val model = modelSupplier()
-            logger.debug("BalancedReadModelJob starting catchup phase for {}.", model)
-            model.catchup(source)
-        } finally {
-            supervisor.startupMutex.unlock(this)
-        }
-
         val source = sourceSupplier()
         val model = modelSupplier()
-        logger.debug("BalancedReadModelJob starting streaming phase for {}.", model)
-        model.stream(source)
+        if (preventParallelCatchup) {
+            model.strategy(source, StreamingSourcingStrategy {
+                supervisor.startupMutex.unlock(this)
+            })
+        } else {
+            model.stream(source)
+        }
     }
 
     override suspend fun onExited(supervisor: ModelSupervisor) {

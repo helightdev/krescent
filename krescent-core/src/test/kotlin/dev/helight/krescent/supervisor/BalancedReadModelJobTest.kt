@@ -43,7 +43,7 @@ class BalancedReadModelJobTest {
 
             // Expect book 1 -> 9 copies, book 2 -> 5 copies (as per simulated stream)
             assertEquals(mapOf("1" to 9, "2" to 5), target)
-            assertEquals(3, creationCounter)
+            assertEquals(2, creationCounter)
         }
     }
 
