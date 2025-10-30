@@ -6,13 +6,13 @@ import dev.helight.krescent.source.PollingStreamingEventSource.Companion.polling
 import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.test.StreamingEventSourceContract
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
 
 class PollingStreamingEventSourceNotifyingTest : StreamingEventSourceContract {
     override fun execWithStreamingSource(block: suspend CoroutineScope.(StreamingEventSource, EventPublisher) -> Unit) {
         val source = InMemoryEventStore()
-        val channel = Channel<Unit>(Channel.CONFLATED)
+        val channel = MutableSharedFlow<Unit>(0)
         val publisher = source.channelNotifying(channel)
         val streaming = source.pollingWithNotifications(channel)
         runBlocking {

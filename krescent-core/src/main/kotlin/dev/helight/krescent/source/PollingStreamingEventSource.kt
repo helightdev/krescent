@@ -2,10 +2,11 @@ package dev.helight.krescent.source
 
 import dev.helight.krescent.event.EventMessage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.produceIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 
@@ -18,13 +19,13 @@ import kotlinx.coroutines.selects.select
  * @param source The underlying stored event source to fetch events from.
  * @param pollingDelay The delay in milliseconds between polling attempts when no events are available.
  * @param batchSize The number of events to fetch in each polling iteration, null for unlimited.
- * @param notificationChannel An optional channel for receiving notifications to trigger polling immediately.
+ * @param notificationFlow An optional channel for receiving notifications to trigger polling immediately.
  */
 class PollingStreamingEventSource(
     val source: StoredEventSource,
     val pollingDelay: Long = 500,
     val batchSize: Int? = null,
-    val notificationChannel: Channel<*>? = null,
+    val notificationFlow: Flow<*>? = null,
 ) : StreamingEventSource, StoredEventSource by source {
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -32,20 +33,25 @@ class PollingStreamingEventSource(
         coroutineScope {
             val initialToken = startToken ?: getHeadToken()
             var cursor: StreamingToken<*> = initialToken
-            return@coroutineScope flow {
-                while (true) {
-                    var hadData = false
-                    fetchEventsAfter(cursor, batchSize).collect {
-                        cursor = it.second
-                        emit(it)
-                        hadData = true
-                    }
-                    if (!hadData) {
-                        select {
-                            onTimeout(pollingDelay) {}
-                            notificationChannel?.onReceive {}
+            return@coroutineScope channelFlow {
+                val channel = notificationFlow?.produceIn(this)
+                try {
+                    while (isActive) {
+                        var hadData = false
+                        fetchEventsAfter(cursor, batchSize).collect {
+                            cursor = it.second
+                            send(it)
+                            hadData = true
+                        }
+                        if (!hadData) {
+                            select {
+                                onTimeout(pollingDelay) {}
+                                channel?.onReceive {}
+                            }
                         }
                     }
+                } finally {
+                    channel?.cancel()
                 }
             }
         }
@@ -67,12 +73,12 @@ class PollingStreamingEventSource(
          * Creates a `PollingStreamingEventSource` that streams events from the `StoredEventSource` using periodic polling
          * and delivers notifications through a specified channel.
          *
-         * @param channel The channel used to send notifications when new events are available.
+         * @param notifications The channel used to send notifications when new events are available.
          * @param pollingDelay The delay in milliseconds between polling attempts. Defaults to 30,000 milliseconds (30 seconds).
          * @param batchSize The maximum number of events to fetch in each polling operation. If null, no limit is applied.
          */
         fun StoredEventSource.pollingWithNotifications(
-            channel: Channel<*>,
+            notifications: Flow<*>,
             pollingDelay: Long = 30_000L,
             batchSize: Int? = null,
         ) =
@@ -80,7 +86,7 @@ class PollingStreamingEventSource(
                 source = this,
                 pollingDelay = pollingDelay,
                 batchSize = batchSize,
-                notificationChannel = channel
+                notificationFlow = notifications
             )
 
     }
