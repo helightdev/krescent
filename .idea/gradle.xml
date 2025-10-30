@@ -26,6 +26,7 @@
             <option value="$PROJECT_DIR$/krescent-exposed" />
             <option value="$PROJECT_DIR$/krescent-kurrent" />
             <option value="$PROJECT_DIR$/krescent-mongo" />
+            <option value="$PROJECT_DIR$/krescent-redisson" />
             <option value="$PROJECT_DIR$/krescent-test" />
           </set>
         </option>
