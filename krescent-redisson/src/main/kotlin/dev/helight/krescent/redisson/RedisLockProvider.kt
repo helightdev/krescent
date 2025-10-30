@@ -6,6 +6,7 @@ import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.withTimeout
 import org.redisson.api.RLock
 import org.redisson.api.RedissonClient
+import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
@@ -20,7 +21,7 @@ class RedisLockProvider(
 
     override suspend fun getLock(identity: String): KrescentLock {
         val rlock = client.getLock(prefix + identity)
-        return RedisLockImpl(rlock, lockIdCounter.getAndIncrement())
+        return RedisLockImpl(rlock)
     }
 
     override suspend fun getMultiLock(identities: Collection<String>): KrescentLock {
@@ -28,13 +29,14 @@ class RedisLockProvider(
             client.getLock(prefix + identity)
         }.toTypedArray()
         val multiLock = client.getMultiLock(*lockList)
-        return RedisLockImpl(multiLock, lockIdCounter.getAndIncrement())
+        return RedisLockImpl(multiLock)
     }
 
     private inner class RedisLockImpl(
         val lock: RLock,
-        val lockId: Long,
     ) : KrescentLock {
+
+        private val claims: Stack<Long> = Stack()
 
         override suspend fun acquire(timeout: Duration?) {
             if (timeout != null) {
@@ -45,27 +47,20 @@ class RedisLockProvider(
         }
 
         private suspend fun acquire() {
+            val claimId = lockIdCounter.getAndIncrement()
             lock.lockAsync(
                 when {
                     leaseTime.isInfinite() -> -1L
                     else -> leaseTime.inWholeMilliseconds
-                }, TimeUnit.MILLISECONDS, lockId
+                }, TimeUnit.MILLISECONDS, claimId
             ).asDeferred().await()
+            claims.push(claimId)
         }
 
         override suspend fun release() {
-            lock.unlockAsync(lockId).asDeferred().await()
-        }
-
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-            other as RedisLockImpl
-            return lockId == other.lockId
-        }
-
-        override fun hashCode(): Int {
-            return lockId.hashCode()
+            if (claims.isEmpty()) return
+            val claimId = claims.pop()
+            lock.unlockAsync(claimId).asDeferred().await()
         }
     }
 }

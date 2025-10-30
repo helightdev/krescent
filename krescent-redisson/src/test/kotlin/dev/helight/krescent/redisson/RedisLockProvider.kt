@@ -28,6 +28,9 @@ class RedisLockProviderTest : KrescentLockProviderContract {
         })
     }
 
+    override val latency: Long
+        get() = 100L
+
     override fun getProvider(): KrescentLockProvider {
         val db = connect()
         val uid = UUID.randomUUID().toString()
