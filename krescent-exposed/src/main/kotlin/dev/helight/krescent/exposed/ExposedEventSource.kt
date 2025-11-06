@@ -20,7 +20,7 @@ class ExposedEventSource(
     val table: KrescentEventLogTable = KrescentEventLogTable(),
     val streamIdMatcher: StreamIdMatcher = StreamIdMatcher.EQ,
     val eventFilter: StreamEventFilter? = null,
-    val batchSize: Int = 20,
+    val batchSize: Int = 500,
 ) : StoredEventSource {
     override suspend fun getHeadToken(): StreamingToken<*> {
         return ExposedStreamingToken.HeadToken()
