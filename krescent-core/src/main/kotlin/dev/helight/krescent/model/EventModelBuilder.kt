@@ -40,6 +40,7 @@ class EventModelBuilder(
     private var handler: EventStreamProcessor? = null,
 ) : ExtensionAwareBuilder {
 
+    private val additionalProcessors: MutableList<EventStreamProcessor> = mutableListOf()
     private val virtualEvents: MutableList<Pair<String, VirtualEventIngest>> = mutableListOf()
     private var checkpointConfig: CheckpointConfiguration? = null
 
@@ -72,6 +73,19 @@ class EventModelBuilder(
         stream: VirtualEventIngest,
     ) {
         virtualEvents.add(streamId to stream)
+    }
+
+    /**
+     * Registers an additional event stream processor for the model. The provided processor will
+     * handle specific stream processing tasks in conjunction with the existing processors.
+     *
+     * @param processor The event stream processor to register. This should implement the
+     *                  [EventStreamProcessor] interface to process individual events.
+     */
+    fun registerProcessor(
+        processor: EventStreamProcessor,
+    ) {
+        additionalProcessors.add(processor)
     }
 
     /**
@@ -109,6 +123,7 @@ class EventModelBuilder(
             buildList {
                 add(handler)
                 addAll(extensions.filterIsInstance<EventStreamProcessor>())
+                addAll(additionalProcessors)
             }
         )
 
@@ -140,6 +155,7 @@ class EventModelBuilder(
                 )
             }
         }
+
         extensions.forEach {
             it.modelCreatedCallback(model)
         }
