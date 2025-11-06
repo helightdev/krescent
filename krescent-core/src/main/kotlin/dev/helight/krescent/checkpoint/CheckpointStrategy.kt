@@ -8,31 +8,43 @@ import kotlin.concurrent.atomics.incrementAndFetch
 import kotlin.time.Duration
 
 interface CheckpointStrategy {
-    suspend fun tick(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean
-    suspend fun tickGracefulTermination(): Boolean = false
+    suspend fun afterMessage(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean
+    suspend fun afterTermination(): Boolean = false
 }
 
 @Suppress("unused")
 object NoCheckpointStrategy : CheckpointStrategy {
-    override suspend fun tick(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
+    override suspend fun afterMessage(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
         return false
     }
 }
 
 @Suppress("unused")
+object TerminationCheckpointStrategy : CheckpointStrategy {
+    override suspend fun afterMessage(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
+        return false
+    }
+
+    override suspend fun afterTermination(): Boolean {
+        return true
+    }
+}
+
+
+@Suppress("unused")
 @OptIn(ExperimentalAtomicApi::class)
 class FixedEventRateCheckpointStrategy(
     private val checkpoint: Long,
-    val checkpointOnGracefulTermination: Boolean = true,
+    val checkpointOnTermination: Boolean = true,
 ) : CheckpointStrategy {
 
     private val counter = AtomicLong(0)
 
-    override suspend fun tickGracefulTermination(): Boolean {
-        return checkpointOnGracefulTermination
+    override suspend fun afterTermination(): Boolean {
+        return checkpointOnTermination
     }
 
-    override suspend fun tick(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
+    override suspend fun afterMessage(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
         return counter.incrementAndFetch() % checkpoint == 0L
     }
 }
@@ -46,7 +58,7 @@ class ManualCheckpointStrategy : CheckpointStrategy {
         shouldCheckpoint = true
     }
 
-    override suspend fun tick(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
+    override suspend fun afterMessage(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
         if (shouldCheckpoint) {
             shouldCheckpoint = false
             return true
@@ -59,14 +71,14 @@ class ManualCheckpointStrategy : CheckpointStrategy {
 @Suppress("unused")
 class FixedTimeRateCheckpointStrategy(
     private val rate: Duration,
-    val checkpointOnGracefulTermination: Boolean = true,
+    val checkpointOnTermination: Boolean = true,
 ) : CheckpointStrategy {
 
-    override suspend fun tickGracefulTermination(): Boolean {
-        return checkpointOnGracefulTermination
+    override suspend fun afterTermination(): Boolean {
+        return checkpointOnTermination
     }
 
-    override suspend fun tick(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
+    override suspend fun afterMessage(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
         if (lastCheckpoint == null) return true
         val currentTime = Clock.System.now()
         val duration = currentTime - (lastCheckpoint.timestamp)
@@ -77,7 +89,7 @@ class FixedTimeRateCheckpointStrategy(
 @Suppress("unused")
 object AlwaysCheckpointStrategy : CheckpointStrategy {
 
-    override suspend fun tick(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
+    override suspend fun afterMessage(eventMessage: EventMessage, lastCheckpoint: StoredCheckpoint?): Boolean {
         return true
     }
 }

@@ -37,7 +37,7 @@ class CheckpointingEventSourceConsumer(
                     position: StreamingToken<*>,
                 ) {
                     consumer.process(message, position)
-                    val tickerResult = checkpointStrategy.tick(message, lastCheckpoint)
+                    val tickerResult = checkpointStrategy.afterMessage(message, lastCheckpoint)
                     if (tickerResult) {
                         val checkpoint = checkpoint(position)
                         checkpointStorage.storeCheckpoint(checkpoint)
@@ -52,7 +52,7 @@ class CheckpointingEventSourceConsumer(
             })
         } catch (e: CancellationException) {
             withContext(NonCancellable) {
-                if (checkpointStrategy.tickGracefulTermination() && lastPosition != null) {
+                if (checkpointStrategy.afterTermination() && lastPosition != null) {
                     val checkpoint = checkpoint(lastPosition)
                     checkpointStorage.storeCheckpoint(checkpoint)
                 }
@@ -60,7 +60,7 @@ class CheckpointingEventSourceConsumer(
             throw e
         }
 
-        if (checkpointStrategy.tickGracefulTermination() && lastPosition != null) {
+        if (checkpointStrategy.afterTermination() && lastPosition != null) {
             val checkpoint = checkpoint(lastPosition)
             checkpointStorage.storeCheckpoint(checkpoint)
         }
