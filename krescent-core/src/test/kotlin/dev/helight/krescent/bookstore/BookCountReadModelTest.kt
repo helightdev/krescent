@@ -1,13 +1,18 @@
 package dev.helight.krescent.bookstore
 
 import dev.helight.krescent.checkpoint.AlwaysCheckpointStrategy
+import dev.helight.krescent.checkpoint.MinimizedCheckpointStrategy
 import dev.helight.krescent.checkpoint.impl.InMemoryCheckpointStorage
 import dev.helight.krescent.event.Event
 import dev.helight.krescent.model.EventModelBase.Extension.withConfiguration
 import dev.helight.krescent.model.ReadModelBase.Extension.catchup
 import dev.helight.krescent.model.ReadModelBase.Extension.restoreOnly
+import dev.helight.krescent.model.ReadModelBase.Extension.stream
 import dev.helight.krescent.model.ReducingReadModel
 import dev.helight.krescent.source.impl.InMemoryEventStore
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import java.util.concurrent.atomic.AtomicInteger
@@ -46,6 +51,38 @@ class BookCountReadModelTest {
         }.restoreOnly()
         assertNotNull(late)
         assertEquals(9, late.target["1"])
+    }
+
+    @Test
+    fun `Test minimized checkpointing`(): Unit = runBlocking {
+        val source = InMemoryEventStore()
+        val checkpointStorage = InMemoryCheckpointStorage()
+        source.publishAll(bookstoreSimulatedEventStream)
+
+        val initial = BooksAvailableReadModel().withConfiguration {
+            useCheckpoints(checkpointStorage, MinimizedCheckpointStrategy())
+        }.restoreOnly()
+        assertNull(initial)
+        assertNull(checkpointStorage.getLatestCheckpoint("books.counts"))
+
+        // Check if it happens at termination / catchup
+        val caughtUp = BooksAvailableReadModel().withConfiguration {
+            useCheckpoints(checkpointStorage, MinimizedCheckpointStrategy())
+        }.catchup(source)
+        assertEquals(9, caughtUp.target["1"])
+        assertNotNull(checkpointStorage.getLatestCheckpoint("books.counts"))
+
+        // Check if it happens at the callback as well
+        checkpointStorage.clearCheckpoints()
+        assertNull(checkpointStorage.getLatestCheckpoint("books.counts"))
+        val job = async {
+            BooksAvailableReadModel().withConfiguration {
+                useCheckpoints(checkpointStorage, MinimizedCheckpointStrategy())
+            }.stream(source)
+        }
+        delay(200)
+        assertNotNull(checkpointStorage.getLatestCheckpoint("books.counts"))
+        job.cancelAndJoin()
     }
 }
 

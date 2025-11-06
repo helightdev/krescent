@@ -11,4 +11,7 @@ interface StreamingToken<SELF : StreamingToken<SELF>> : Comparable<SELF> {
      * @return A string representing the serialized token.
      */
     fun serialize(): String
+
+    @Suppress("UNCHECKED_CAST")
+    fun compareUnsafe(other: StreamingToken<*>) = this.compareTo(other as SELF)
 }

@@ -15,6 +15,16 @@ interface EventSourcingStrategy {
     ) = consumer.process(this.first, this.second)
 }
 
-interface WriteCompatibleEventSourcingStrategy {
+interface CallbackEventSourcingStrategy {
     var then: suspend () -> Unit
+
+    fun addThenChain(callback: suspend () -> Unit) {
+        val previous = then
+        then = {
+            previous()
+            callback()
+        }
+    }
 }
+
+interface WriteCompatibleEventSourcingStrategy : CallbackEventSourcingStrategy

@@ -1,10 +1,7 @@
 package dev.helight.krescent.checkpoint
 
 import dev.helight.krescent.event.*
-import dev.helight.krescent.source.EventSourceConsumer
-import dev.helight.krescent.source.EventSourcingStrategy
-import dev.helight.krescent.source.StreamingEventSource
-import dev.helight.krescent.source.StreamingToken
+import dev.helight.krescent.source.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -23,13 +20,23 @@ class CheckpointingEventSourceConsumer(
 ) : EventSourceConsumer {
 
     private val logger = LoggerFactory.getLogger(CheckpointingEventSourceConsumer::class.java)
+    private var lastCheckpoint: StoredCheckpoint? = null
+    private var lastPosition: StreamingToken<*>? = null
+    private val context: CheckpointContext
+        get() = CheckpointContext(
+            lastCheckpoint = lastCheckpoint,
+            lastPosition = lastPosition
+        )
 
     @Suppress("UNCHECKED_CAST")
     override suspend fun strategy(strategy: EventSourcingStrategy) {
-        var lastCheckpoint = loadLastCheckpoint()
-        var lastPosition: StreamingToken<*>? = lastCheckpoint?.position?.let {
-            source.deserializeToken(it)
+        loadLastCheckpoint()
+        if (strategy is CallbackEventSourcingStrategy) {
+            strategy.addThenChain {
+                if (checkpointStrategy.afterCallback(context)) tryCheckpoint()
+            }
         }
+
         try {
             strategy.source(source, lastPosition, object : EventMessageStreamProcessor {
                 override suspend fun process(
@@ -37,13 +44,8 @@ class CheckpointingEventSourceConsumer(
                     position: StreamingToken<*>,
                 ) {
                     consumer.process(message, position)
-                    val tickerResult = checkpointStrategy.afterMessage(message, lastCheckpoint)
-                    if (tickerResult) {
-                        val checkpoint = checkpoint(position)
-                        checkpointStorage.storeCheckpoint(checkpoint)
-                        lastCheckpoint = checkpoint // TODO: Why is not used per lint? This isn't closed and should work
-                    }
                     lastPosition = position
+                    if (checkpointStrategy.afterMessage(message, context)) tryCheckpoint()
                 }
 
                 override suspend fun forwardSystemEvent(event: Event) {
@@ -51,19 +53,18 @@ class CheckpointingEventSourceConsumer(
                 }
             })
         } catch (e: CancellationException) {
-            withContext(NonCancellable) {
-                if (checkpointStrategy.afterTermination() && lastPosition != null) {
-                    val checkpoint = checkpoint(lastPosition)
-                    checkpointStorage.storeCheckpoint(checkpoint)
-                }
-            }
+            withContext(NonCancellable) { if (checkpointStrategy.afterTermination(context)) tryCheckpoint() }
             throw e
         }
 
-        if (checkpointStrategy.afterTermination() && lastPosition != null) {
-            val checkpoint = checkpoint(lastPosition)
-            checkpointStorage.storeCheckpoint(checkpoint)
-        }
+        if (checkpointStrategy.afterTermination(context)) tryCheckpoint()
+    }
+
+    private suspend fun tryCheckpoint() {
+        if (lastPosition == null) return
+        val checkpoint = checkpoint(lastPosition!!)
+        checkpointStorage.storeCheckpoint(checkpoint)
+        lastCheckpoint = checkpoint
     }
 
     private suspend fun loadLastCheckpoint(): StoredCheckpoint? {
@@ -90,6 +91,8 @@ class CheckpointingEventSourceConsumer(
             logger.info("No valid checkpoint found for namespace '$namespace', starting from scratch")
             consumer.forwardSystemEvent(SystemStreamHeadEvent)
         }
+        this.lastCheckpoint = lastCheckpoint
+        this.lastPosition = lastCheckpoint?.position?.let { source.deserializeToken(it) }
         return lastCheckpoint
     }
 

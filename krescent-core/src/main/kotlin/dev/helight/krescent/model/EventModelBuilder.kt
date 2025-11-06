@@ -1,9 +1,6 @@
 package dev.helight.krescent.model
 
-import dev.helight.krescent.checkpoint.CheckpointStorage
-import dev.helight.krescent.checkpoint.CheckpointStrategy
-import dev.helight.krescent.checkpoint.CheckpointSupport
-import dev.helight.krescent.checkpoint.CheckpointingEventSourceConsumer
+import dev.helight.krescent.checkpoint.*
 import dev.helight.krescent.event.EventCatalog
 import dev.helight.krescent.event.EventStreamProcessor
 import dev.helight.krescent.event.VirtualEventIngest
@@ -105,7 +102,7 @@ class EventModelBuilder(
      */
     fun useCheckpoints(
         checkpointStorage: CheckpointStorage,
-        strategy: CheckpointStrategy,
+        strategy: CheckpointStrategy = MinimizedCheckpointStrategy(),
     ) {
         checkpointConfig = CheckpointConfiguration(checkpointStorage, strategy)
     }
