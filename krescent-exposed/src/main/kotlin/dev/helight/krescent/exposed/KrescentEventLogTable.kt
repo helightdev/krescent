@@ -9,6 +9,7 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.json.json
+import org.jetbrains.exposed.sql.json.jsonb
 import org.jetbrains.exposed.sql.kotlin.datetime.KotlinInstantColumnType
 import org.jetbrains.exposed.sql.upsert
 import kotlin.time.ExperimentalTime
@@ -20,11 +21,11 @@ class KrescentEventLogTable(tableName: String = "krescent") : LongIdTable(tableN
     val type = text("type").index()
     val timestamp = registerColumn("timestamp", KotlinInstantColumnType()).index()
 
-    val data = json("data", {
+    val data = jsonb("data", {
         Json.encodeToString(it)
     }, {
         Json.decodeFromString(JsonElement.serializer(), it)
-    })
+    }).index()
 
     suspend fun create(database: Database) {
         jdbcSuspendTransaction(database) { SchemaUtils.create(this@KrescentEventLogTable) }

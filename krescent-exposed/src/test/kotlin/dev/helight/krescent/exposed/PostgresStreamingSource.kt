@@ -127,6 +127,21 @@ class PostgresStreamingSource : StreamingEventSourceContract {
         assertEquals(3, listReceived.count())
     }
 
+    @Test
+    fun `Simple event payload filter for string`() = execWithTable { db, table ->
+        val publisher = ExposedEventPublisher(db, "event-stream", table)
+        publisher.publish(exampleCatalog.create(EventA(1)))
+        publisher.publish(exampleCatalog.create(EventB(2)))
+        publisher.publish(exampleCatalog.create(EventC(2)))
+        publisher.publish(exampleCatalog.create(EventC(3)))
+
+        val payloadFilterReceived = ExposedEventSource(
+            db, "event-stream", table,
+            payloadFilter = StreamPayloadFilter.field("num", 2)
+        ).fetchEventsAfter().toList()
+        assertEquals(2, payloadFilterReceived.count())
+    }
+
     val exampleCatalog = buildEventCatalog(1) {
         event<EventA>("main.a")
         event<EventB>("main.b")

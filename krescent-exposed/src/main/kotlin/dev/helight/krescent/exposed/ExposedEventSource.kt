@@ -7,9 +7,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.regexp
+import org.jetbrains.exposed.sql.json.contains
 import kotlin.math.min
 import kotlin.time.ExperimentalTime
 
@@ -20,6 +20,7 @@ class ExposedEventSource(
     val table: KrescentEventLogTable = KrescentEventLogTable(),
     val streamIdMatcher: StreamIdMatcher = StreamIdMatcher.EQ,
     val eventFilter: StreamEventFilter? = null,
+    val payloadFilter: StreamPayloadFilter? = null,
     val batchSize: Int = 500,
 ) : StoredEventSource {
     override suspend fun getHeadToken(): StreamingToken<*> {
@@ -45,10 +46,8 @@ class ExposedEventSource(
             }
         }?.let { andWhere { it } }
 
-        when (eventFilter) {
-            null -> null
-            else -> table.type inList eventFilter.eventNames
-        }?.let { andWhere { it } }
+        if (eventFilter != null) andWhere { table.type inList eventFilter.eventNames }
+        if (payloadFilter != null) andWhere { table.data.contains(payloadFilter.toQuery()) }
 
         return this
     }

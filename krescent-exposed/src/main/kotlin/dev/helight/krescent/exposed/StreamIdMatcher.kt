@@ -27,5 +27,5 @@ class StreamEventFilter(
             return StreamEventFilter(includes)
         }
     }
-
 }
+
