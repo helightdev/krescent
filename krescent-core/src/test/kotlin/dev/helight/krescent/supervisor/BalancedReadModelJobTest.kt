@@ -8,6 +8,7 @@ import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -15,7 +16,7 @@ class BalancedReadModelJobTest {
 
     @Test
     fun `BalancedReadModelJob processes bookstore events`() = runBlocking {
-        withTimeout(1000) {
+        withTimeout(1000.milliseconds) {
             val source = InMemoryEventStore(bookstoreSimulatedEventStream.toMutableList())
 
             val target = mutableMapOf<String, Int>()
@@ -36,7 +37,7 @@ class BalancedReadModelJobTest {
             val supJob = async { supervisor.execute() }
 
             // Give the supervisor time to perform catchup and start streaming
-            delay(500)
+            delay(500.milliseconds)
 
             // Stop the supervisor and ensure it finished
             supJob.cancelAndJoin()
@@ -49,7 +50,7 @@ class BalancedReadModelJobTest {
 
     @Test
     fun `BalancedReadModelJob panics after many crashes`(): Unit = runBlocking {
-        withTimeout(1000) {
+        withTimeout(1000.milliseconds) {
             val source = InMemoryEventStore(bookstoreSimulatedEventStream.toMutableList())
 
             val target = mutableMapOf<String, Int>()

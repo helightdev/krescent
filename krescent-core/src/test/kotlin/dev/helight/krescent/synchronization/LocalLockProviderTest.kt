@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 class LocalLockProviderTest : KrescentLockProviderContract {
 
@@ -36,13 +37,13 @@ class LocalLockProviderTest : KrescentLockProviderContract {
             async {
                 val lock = provider.getLock("test-identity")
                 lock.runGuarded {
-                    delay(50)
+                    delay(50.milliseconds)
                 }
             },
             async {
                 val lock = provider.getLock("another-identity")
                 lock.runGuarded {
-                    delay(50)
+                    delay(50.milliseconds)
                 }
             }
         ).awaitAll()
@@ -50,7 +51,7 @@ class LocalLockProviderTest : KrescentLockProviderContract {
         assertTrue(timeAfter - timeStart < 95)
 
         System.gc()
-        delay(100)
+        delay(100.milliseconds)
         provider.cleanup()
         assertEquals(provider.locks.size, 1)
 

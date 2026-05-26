@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 class LocalSharedLockProviderTest {
 
@@ -18,13 +19,13 @@ class LocalSharedLockProviderTest {
             async {
                 val lock = provider.getLock("test-identity")
                 lock.runGuarded {
-                    delay(50)
+                    delay(50.milliseconds)
                 }
             },
             async {
                 val lock = provider.getLock("test-identity")
                 lock.runGuarded {
-                    delay(50)
+                    delay(50.milliseconds)
                 }
             }
         ).awaitAll()
@@ -40,13 +41,13 @@ class LocalSharedLockProviderTest {
             async {
                 val lock = provider.getLock("test-identity")
                 lock.runGuarded {
-                    delay(50)
+                    delay(50.milliseconds)
                 }
             },
             async {
                 val lock = provider.getLock("another-identity")
                 lock.runGuarded {
-                    delay(50)
+                    delay(50.milliseconds)
                 }
             }
         ).awaitAll()
@@ -62,13 +63,13 @@ class LocalSharedLockProviderTest {
             async {
                 val lock = provider.getMultiLock("a", "b")
                 lock.runGuarded {
-                    delay(50)
+                    delay(50.milliseconds)
                 }
             },
             async {
                 val lock = provider.getMultiLock("x", "y")
                 lock.runGuarded {
-                    delay(50)
+                    delay(50.milliseconds)
                 }
             }
         ).awaitAll()

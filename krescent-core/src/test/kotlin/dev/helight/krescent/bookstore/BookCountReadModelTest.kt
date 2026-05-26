@@ -20,6 +20,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.time.Duration.Companion.milliseconds
 
 class BookCountReadModelTest {
 
@@ -80,7 +81,7 @@ class BookCountReadModelTest {
                 useCheckpoints(checkpointStorage, MinimizedCheckpointStrategy())
             }.stream(source)
         }
-        delay(200)
+        delay(200.milliseconds)
         assertNotNull(checkpointStorage.getLatestCheckpoint("books.counts"))
         job.cancelAndJoin()
     }
