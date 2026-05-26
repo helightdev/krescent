@@ -5,12 +5,13 @@ import dev.helight.krescent.test.CheckpointStoreContract
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import java.time.Duration
 import java.util.*
+import kotlin.time.Duration.Companion.milliseconds
 
 @Testcontainers
 class PostgresCheckpointStorage : CheckpointStoreContract {
@@ -32,6 +33,7 @@ class PostgresCheckpointStorage : CheckpointStoreContract {
             user = "root",
             password = "example"
         )
+
     }
 
     override fun withCheckpointStorage(block: suspend CoroutineScope.(CheckpointStorage) -> Unit) = runBlocking {
@@ -42,7 +44,7 @@ class PostgresCheckpointStorage : CheckpointStoreContract {
         try {
             val storage = ExposedCheckpointStorage(db, table)
             this.block(storage)
-            delay(300)
+            delay(300.milliseconds)
         } finally {
             runCatching { table.drop(db) }
         }

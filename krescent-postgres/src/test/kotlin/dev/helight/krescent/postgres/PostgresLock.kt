@@ -2,7 +2,7 @@ package dev.helight.krescent.postgres
 
 import dev.helight.krescent.synchronization.KrescentLockProvider
 import dev.helight.krescent.test.KrescentLockProviderContract
-import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers

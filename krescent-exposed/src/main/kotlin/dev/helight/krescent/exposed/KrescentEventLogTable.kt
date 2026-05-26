@@ -4,22 +4,27 @@ package dev.helight.krescent.exposed
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import org.jetbrains.exposed.dao.id.LongIdTable
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.json.json
-import org.jetbrains.exposed.sql.json.jsonb
-import org.jetbrains.exposed.sql.kotlin.datetime.KotlinInstantColumnType
-import org.jetbrains.exposed.sql.upsert
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.dao.id.LongIdTable
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.datetime.KotlinInstantColumnType
+import org.jetbrains.exposed.v1.datetime.timestamp
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.upsert
+import org.jetbrains.exposed.v1.json.json
+import org.jetbrains.exposed.v1.json.jsonb
 import kotlin.time.ExperimentalTime
+import kotlin.uuid.ExperimentalUuidApi
 
 @OptIn(ExperimentalTime::class)
 class KrescentEventLogTable(tableName: String = "krescent") : LongIdTable(tableName) {
+    @OptIn(ExperimentalUuidApi::class)
     val uid = uuid("uuid").uniqueIndex()
     val streamId = text("streamId").index()
     val type = text("type").index()
-    val timestamp = registerColumn("timestamp", KotlinInstantColumnType()).index()
+    val timestamp = timestamp("timestamp").index()
 
     val data = jsonb("data", {
         Json.encodeToString(it)

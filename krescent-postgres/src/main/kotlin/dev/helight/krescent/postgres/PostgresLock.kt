@@ -5,8 +5,8 @@ import dev.helight.krescent.synchronization.KrescentLockProvider
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.util.*
@@ -60,7 +60,7 @@ private fun launchPostgresLockJob(
 ): Deferred<Unit> {
     val started = CompletableDeferred<Unit>()
     CoroutineScope(Dispatchers.IO).launch {
-        newSuspendedTransaction(db = database) {
+        suspendTransaction(db = database) {
             try {
                 val setLockTimeout = when (timeout) {
                     Duration.INFINITE -> "SET LOCAL lock_timeout = 0"
@@ -75,7 +75,7 @@ private fun launchPostgresLockJob(
                 started.complete(Unit)
             } catch (e: Exception) {
                 started.completeExceptionally(e)
-                return@newSuspendedTransaction
+                return@suspendTransaction
             }
             select {
                 releaser.onAwait {}
