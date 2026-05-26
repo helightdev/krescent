@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Test class for the CoroutineUtilsKt class focusing on the 'joinSequentialFlows' function.
@@ -42,18 +43,18 @@ class JoinSequentialFlowTest {
     fun `test joinSequentialFlows with delay between emissions`() = runBlocking {
         val firstFlow = flow {
             emit("X")
-            delay(100)
+            delay(100.milliseconds)
             emit("Y")
-            delay(100)
+            delay(100.milliseconds)
             emit("Z")
         }
 
         val secondFlow = flow {
-            delay(50)
+            delay(50.milliseconds)
             emit("7")
-            delay(50)
+            delay(50.milliseconds)
             emit("8")
-            delay(50)
+            delay(50.milliseconds)
             emit("9")
         }
 
@@ -134,14 +135,14 @@ class JoinSequentialFlowTest {
     fun `test joinSequentialFlows with second flow emitting after delay`() = runBlocking {
         val firstFlow = flow {
             emit("Alpha")
-            delay(200)
+            delay(200.milliseconds)
             emit("Beta")
         }
 
         val secondFlow = flow {
-            delay(300)
+            delay(300.milliseconds)
             emit("1")
-            delay(100)
+            delay(100.milliseconds)
             emit("2")
         }
 
@@ -158,14 +159,14 @@ class JoinSequentialFlowTest {
     fun `test joinSequentialFlows with overlapping emissions`() = runBlocking {
         val firstFlow = flow {
             emit("Start-1A")
-            delay(80)
+            delay(80.milliseconds)
             emit("Start-1B")
         }
 
         val secondFlow = flow {
-            delay(50)
+            delay(50.milliseconds)
             emit("Live-2A")
-            delay(100)
+            delay(100.milliseconds)
             emit("Live-2B")
         }
 

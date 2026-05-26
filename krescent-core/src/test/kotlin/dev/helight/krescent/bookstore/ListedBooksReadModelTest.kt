@@ -14,19 +14,18 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.test.*
+import kotlin.time.Duration.Companion.milliseconds
 
 class ListedBooksReadModelTest {
 
     @Test
     fun `Test single large catchup`() = runBlocking {
         val buffer = mutableMapOf<String, BookState>()
-        buffer.put(
-            "3", BookState(
-                title = "Left Overs",
-                author = "",
-                price = 1.0,
-                copies = 1
-            )
+        buffer["3"] = BookState(
+            title = "Left Overs",
+            author = "",
+            price = 1.0,
+            copies = 1
         )
         val source = InMemoryEventStore(bookstoreSimulatedEventStream.toMutableList())
         source.buildEventModel("books.listed", 1, bookstoreEventCatalog) {
@@ -42,13 +41,11 @@ class ListedBooksReadModelTest {
 
             handler {
                 when (it) {
-                    is BookAddedEvent -> view.put(
-                        it.bookId, BookState(
-                            title = it.title,
-                            author = it.author,
-                            price = it.price,
-                            copies = it.copies
-                        )
+                    is BookAddedEvent -> view[it.bookId] = BookState(
+                        title = it.title,
+                        author = it.author,
+                        price = it.price,
+                        copies = it.copies
                     )
 
                     is BookRemovedEvent -> view.remove(it.bookId)
@@ -70,13 +67,11 @@ class ListedBooksReadModelTest {
     @Test
     fun `Test delayed catchup receives new elements`() = runBlocking {
         val buffer = mutableMapOf<String, BookState>()
-        buffer.put(
-            "3", BookState(
-                title = "Left Overs",
-                author = "",
-                price = 1.0,
-                copies = 1
-            )
+        buffer["3"] = BookState(
+            title = "Left Overs",
+            author = "",
+            price = 1.0,
+            copies = 1
         )
         val source = InMemoryEventStore()
         source.publish(bookstoreSimulatedEventStream[0])
@@ -95,13 +90,11 @@ class ListedBooksReadModelTest {
 
             handler {
                 when (it) {
-                    is BookAddedEvent -> view.put(
-                        it.bookId, BookState(
-                            title = it.title,
-                            author = it.author,
-                            price = it.price,
-                            copies = it.copies
-                        )
+                    is BookAddedEvent -> view[it.bookId] = BookState(
+                        title = it.title,
+                        author = it.author,
+                        price = it.price,
+                        copies = it.copies
                     )
 
                     is BookRemovedEvent -> view.remove(it.bookId)
@@ -131,13 +124,11 @@ class ListedBooksReadModelTest {
     @Test
     fun `Test streamed event source working as expected`() = runBlocking {
         val buffer = mutableMapOf<String, BookState>()
-        buffer.put(
-            "3", BookState(
-                title = "Left Overs",
-                author = "",
-                price = 1.0,
-                copies = 1
-            )
+        buffer["3"] = BookState(
+            title = "Left Overs",
+            author = "",
+            price = 1.0,
+            copies = 1
         )
         val source = InMemoryEventStore()
         source.publish(bookstoreSimulatedEventStream[0])
@@ -156,13 +147,11 @@ class ListedBooksReadModelTest {
 
             handler {
                 when (it) {
-                    is BookAddedEvent -> view.put(
-                        it.bookId, BookState(
-                            title = it.title,
-                            author = it.author,
-                            price = it.price,
-                            copies = it.copies
-                        )
+                    is BookAddedEvent -> view[it.bookId] = BookState(
+                        title = it.title,
+                        author = it.author,
+                        price = it.price,
+                        copies = it.copies
                     )
 
                     is BookRemovedEvent -> view.remove(it.bookId)
@@ -179,15 +168,15 @@ class ListedBooksReadModelTest {
         val streamingJob = launch {
             model.stream()
         }
-        delay(50)
+        delay(50.milliseconds)
         assertEquals(1, buffer.size)
 
         source.publish(bookstoreSimulatedEventStream[1])
-        delay(50)
+        delay(50.milliseconds)
         assertEquals(2, buffer.size)
 
         source.publishAll(bookstoreSimulatedEventStream.drop(2))
-        delay(50)
+        delay(50.milliseconds)
         assertEquals(2, buffer.size)
 
         streamingJob.cancelAndJoin()
@@ -196,13 +185,11 @@ class ListedBooksReadModelTest {
     @Test
     fun `Test function based event model catchup with checkpoints`() = runBlocking {
         val buffer = mutableMapOf<String, BookState>()
-        buffer.put(
-            "3", BookState(
-                title = "Left Overs",
-                author = "",
-                price = 1.0,
-                copies = 1
-            )
+        buffer["3"] = BookState(
+            title = "Left Overs",
+            author = "",
+            price = 1.0,
+            copies = 1
         )
         val source = InMemoryEventStore()
         val checkpointStorage = InMemoryCheckpointStorage()
@@ -226,13 +213,11 @@ class ListedBooksReadModelTest {
 
             handler {
                 when (it) {
-                    is BookAddedEvent -> view.put(
-                        it.bookId, BookState(
-                            title = it.title,
-                            author = it.author,
-                            price = it.price,
-                            copies = it.copies
-                        )
+                    is BookAddedEvent -> view[it.bookId] = BookState(
+                        title = it.title,
+                        author = it.author,
+                        price = it.price,
+                        copies = it.copies
                     )
 
                     is BookRemovedEvent -> view.remove(it.bookId)
@@ -250,20 +235,20 @@ class ListedBooksReadModelTest {
         var streamingJob = launch {
             model.stream()
         }
-        delay(50)
+        delay(50.milliseconds)
         assertEquals(1, buffer.size)
         assertNull(checkpointStorage.getLatestCheckpoint("books.listed"))
 
         // Checkpoint and normal event processing
         manualCheckpointStrategy.mark() // Checkpoint after the next event
         source.publish(bookstoreSimulatedEventStream[1])
-        delay(50)
+        delay(50.milliseconds)
         assertEquals(2, buffer.size)
         assertNotNull(checkpointStorage.getLatestCheckpoint("books.listed"))
 
         // Publish the rest of the event stream, no checkpoint should be created here
         source.publishAll(bookstoreSimulatedEventStream.drop(2))
-        delay(50)
+        delay(50.milliseconds)
         assertEquals(2, buffer.size)
         assertEquals(buffer["1"], finalBookStates["1"])
         assertEquals(buffer["2"], finalBookStates["2"])
@@ -271,33 +256,29 @@ class ListedBooksReadModelTest {
         streamingJob.cancelAndJoin()
 
         // Check if the restored state matches the expected non-final state
-        buffer.put(
-            "3", BookState(
-                title = "Left Overs",
-                author = "",
-                price = 1.0,
-                copies = 1
-            )
+        buffer["3"] = BookState(
+            title = "Left Overs",
+            author = "",
+            price = 1.0,
+            copies = 1
         )
         model.restore()
-        delay(50)
+        delay(50.milliseconds)
         assertEquals(2, buffer.size)
         assertNotEquals(buffer["1"], finalBookStates["1"])
 
 
         // Check if streaming from the restored state results in the final state
-        buffer.put(
-            "3", BookState(
-                title = "Left Overs",
-                author = "",
-                price = 1.0,
-                copies = 1
-            )
+        buffer["3"] = BookState(
+            title = "Left Overs",
+            author = "",
+            price = 1.0,
+            copies = 1
         )
         streamingJob = launch {
             model.stream()
         }
-        delay(50)
+        delay(50.milliseconds)
         assertEquals(2, buffer.size)
         assertEquals(buffer["1"], finalBookStates["1"])
         assertEquals(buffer["2"], finalBookStates["2"])

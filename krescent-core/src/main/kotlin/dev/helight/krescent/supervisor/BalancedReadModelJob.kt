@@ -2,7 +2,6 @@ package dev.helight.krescent.supervisor
 
 import dev.helight.krescent.model.ReadModelBase
 import dev.helight.krescent.model.ReadModelBase.Extension.strategy
-import dev.helight.krescent.model.ReadModelBase.Extension.stream
 import dev.helight.krescent.source.StreamingEventSource
 import dev.helight.krescent.source.strategy.StreamingSourcingStrategy
 import org.slf4j.LoggerFactory
@@ -12,8 +11,8 @@ import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-class BalancedReadModelJob(
-    val modelSupplier: () -> ReadModelBase,
+class BalancedReadModelJob<T: ReadModelBase>(
+    val modelSupplier: () -> T,
     val source: StreamingEventSource? = null,
     val retryAttempts: Int = 3,
     val retryDelay: Duration = 1.toDuration(DurationUnit.SECONDS),
@@ -36,6 +35,8 @@ class BalancedReadModelJob(
     private var currentAttempt = 0
     private var timeout: Long = 0L
     private var lastStart: Long = 0L
+    override var current: T? = null
+    override var ready: Boolean = false
 
     override suspend fun condition(supervisor: ModelSupervisor): Boolean {
         return !supervisor.startupMutex.isLocked && System.currentTimeMillis() > timeout
@@ -48,13 +49,16 @@ class BalancedReadModelJob(
 
     override suspend fun run(supervisor: ModelSupervisor) {
         val source = sourceSupplier()
-        val model = modelSupplier()
+        current = modelSupplier()
         if (preventParallelCatchup) {
-            model.strategy(source, StreamingSourcingStrategy {
+            current!!.strategy(source, StreamingSourcingStrategy {
                 supervisor.startupMutex.unlock(this)
+                ready = true
             })
         } else {
-            model.stream(source)
+            current!!.strategy(source, StreamingSourcingStrategy {
+                ready = true
+            })
         }
     }
 
@@ -62,6 +66,8 @@ class BalancedReadModelJob(
         if (supervisor.startupMutex.holdsLock(this)) {
             supervisor.startupMutex.unlock(this)
         }
+        current = null
+        ready = false
     }
 
     @Suppress("ConvertTwoComparisonsToRangeCheck")
@@ -69,6 +75,8 @@ class BalancedReadModelJob(
         if (supervisor.startupMutex.holdsLock(this)) {
             supervisor.startupMutex.unlock(this)
         }
+        current = null
+        ready = false
 
         if (System.currentTimeMillis() - lastStart >= retryResetDelay.toLong(DurationUnit.MILLISECONDS)) {
             currentAttempt = 0
@@ -84,6 +92,11 @@ class BalancedReadModelJob(
             timeout = System.currentTimeMillis() + delay
         }
     }
+
+    override fun toString(): String {
+        return "BalancedReadModelJob(ready=$ready, current=$current, lastStart=$lastStart, timeout=$timeout, currentAttempt=$currentAttempt, source=$source)"
+    }
+
 
     companion object {
         private val logger = LoggerFactory.getLogger(BalancedReadModelJob::class.java)
