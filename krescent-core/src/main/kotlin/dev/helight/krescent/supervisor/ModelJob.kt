@@ -12,5 +12,6 @@ interface ModelJob {
     suspend fun onBefore(supervisor: ModelSupervisor) {}
     suspend fun onFailed(supervisor: ModelSupervisor, error: Throwable) {}
     suspend fun onExited(supervisor: ModelSupervisor) {}
+    suspend fun onKilled() {}
 }
 

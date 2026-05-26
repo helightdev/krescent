@@ -50,11 +50,19 @@ class ModelSupervisorTest {
                 }
             )
         )
+        val accessor = supervisor.accessorOf<BooksAvailableReadModel>()
+        assert(!accessor.isPresent())
+
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         supervisor.launch(scope)
         val model = supervisor.modelOf<BooksAvailableReadModel>()!!
         assertEquals(9, model.target["1"])
 
+        assert(accessor.isPresent())
+        assertEquals(9, accessor.get().target["1"])
+
+        supervisor.restartJobs()
+        assertEquals(9, accessor.get().target["1"])
     }
 
     @Test

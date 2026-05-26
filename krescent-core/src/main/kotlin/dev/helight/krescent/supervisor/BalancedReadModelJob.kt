@@ -93,6 +93,11 @@ class BalancedReadModelJob<T: ReadModelBase>(
         }
     }
 
+    override suspend fun onKilled() {
+        current = null
+        ready = false
+    }
+
     override fun toString(): String {
         return "BalancedReadModelJob(ready=$ready, current=$current, lastStart=$lastStart, timeout=$timeout, currentAttempt=$currentAttempt, source=$source)"
     }
