@@ -14,6 +14,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.milliseconds
 
 class CheckpointingSituations {
 
@@ -62,7 +63,7 @@ class CheckpointingSituations {
         }
         store.publish(bookstoreEventCatalog.create(BookAddedEvent("1", "", "", 1.0, 1)))
         store.publish(bookstoreEventCatalog.create(BookAddedEvent("1", "", "", 1.0, 1)))
-        delay(50)
+        delay(50.milliseconds)
         job.cancelAndJoin()
         store.publish(bookstoreEventCatalog.create(BookAddedEvent("1", "", "", 1.0, 1)))
         assertEquals(counter, 2)

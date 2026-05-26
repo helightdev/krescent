@@ -113,4 +113,4 @@ val finalBookStates = mapOf(
     )
 )
 
-val bookOneEvtCount = 5
+const val bookOneEvtCount = 5
