@@ -22,10 +22,17 @@ import java.util.logging.Logger
 
 class ExposedTableProjector(
     val database: Database,
-    val table: Table,
+    val tables: Array<out Table>,
     val name: String,
     val metadataTable: KrescentProjectionMetadataTable,
 ) : ModelExtension<ExposedTableProjector>, EventStreamProcessor, CheckpointSupport {
+
+    constructor(
+        database: Database,
+        table: Table,
+        name: String,
+        metadataTable: KrescentProjectionMetadataTable,
+    ) : this(database, arrayOf(table), name, metadataTable)
 
     private val logger: Logger = Logger.getLogger("ExposedTableProjector-${name}")
     private var revision: Int = 0
@@ -41,8 +48,8 @@ class ExposedTableProjector(
     }
 
     private suspend fun reset() = jdbcSuspendTransaction(database) {
-        SchemaUtils.drop(table, metadataTable)
-        SchemaUtils.create(table, metadataTable)
+        SchemaUtils.drop(*tables, metadataTable)
+        SchemaUtils.create(*tables, metadataTable)
         revision = 0
         metadataTable.set<Int>("revision", revision)
     }
@@ -82,7 +89,7 @@ class ExposedTableProjector(
 
     override suspend fun validateCheckpoint(bucket: CheckpointBucket): Boolean =
         jdbcSuspendTransaction(database) inner@{
-            if (!table.exists() || !metadataTable.exists()) {
+            if (tables.any { !it.exists() } || !metadataTable.exists()) {
                 logger.info("Tried resuming from a checkpoint, but projection tables were missing")
                 return@inner false
             }
@@ -119,6 +126,20 @@ class ExposedTableProjector(
             ExposedTableProjector(
                 database = database,
                 table = table,
+                name = name,
+                metadataTable = metadataTable,
+            )
+        )
+
+        fun ExtensionAwareBuilder.exposedTableProjection(
+            database: Database,
+            name: String,
+            vararg tables: Table,
+            metadataTable: KrescentProjectionMetadataTable = KrescentProjectionMetadataTable("${name}_metadata"),
+        ): ExposedTableProjector = registerExtension(
+            ExposedTableProjector(
+                database = database,
+                tables = tables,
                 name = name,
                 metadataTable = metadataTable,
             )
