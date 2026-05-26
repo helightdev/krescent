@@ -1,9 +1,10 @@
 package dev.helight.krescent.exposed
 
 import dev.helight.krescent.source.StreamingToken
-import org.jetbrains.exposed.sql.Query
-import org.jetbrains.exposed.sql.andWhere
-import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.v1.core.greater
+import org.jetbrains.exposed.v1.jdbc.Query
+import org.jetbrains.exposed.v1.jdbc.andWhere
+import org.jetbrains.exposed.v1.jdbc.selectAll
 
 sealed class ExposedStreamingToken : StreamingToken<ExposedStreamingToken> {
 

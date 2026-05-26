@@ -1,10 +1,10 @@
 package dev.helight.krescent.exposed
 
 import kotlinx.coroutines.coroutineScope
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.Transaction
-import org.jetbrains.exposed.sql.transactions.TransactionManager
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.core.Transaction
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 
 internal suspend fun <T> jdbcSuspendTransaction(
     database: Database,
@@ -16,7 +16,7 @@ internal suspend fun <T> jdbcSuspendTransaction(
             ?.takeIf { it.db == database }
             ?.let { return@coroutineScope statement.invoke(it) }
 
-        return@coroutineScope newSuspendedTransaction(db = database) {
-            statement.invoke(this@newSuspendedTransaction)
+        return@coroutineScope suspendTransaction(db = database) {
+            statement.invoke(this@suspendTransaction)
         }
     }

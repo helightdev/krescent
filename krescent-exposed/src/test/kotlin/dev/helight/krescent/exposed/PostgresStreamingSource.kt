@@ -14,7 +14,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
@@ -22,6 +22,7 @@ import java.time.Duration
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.milliseconds
 
 @Testcontainers
 class PostgresStreamingSource : StreamingEventSourceContract {
@@ -52,7 +53,7 @@ class PostgresStreamingSource : StreamingEventSourceContract {
         table.create(db)
         try {
             this.block(db, table)
-            delay(300)
+            delay(300.milliseconds)
         } finally {
             runCatching { table.drop(db) }
         }

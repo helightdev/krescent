@@ -5,13 +5,21 @@ import dev.helight.krescent.source.StoredEventSource
 import dev.helight.krescent.source.StreamingToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.regexp
-import org.jetbrains.exposed.sql.json.contains
+import kotlinx.datetime.toDeprecatedInstant
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.like
+import org.jetbrains.exposed.v1.core.regexp
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.Query
+import org.jetbrains.exposed.v1.jdbc.andWhere
+import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.json.contains
 import kotlin.math.min
 import kotlin.time.ExperimentalTime
+import kotlin.uuid.ExperimentalUuidApi
 
 @OptIn(ExperimentalTime::class)
 class ExposedEventSource(
@@ -67,12 +75,13 @@ class ExposedEventSource(
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     private fun mapRowToPair(row: ResultRow): Pair<EventMessage, ExposedStreamingToken> {
         val event = EventMessage(
             id = row[table.uid].toString(),
             type = row[table.type],
-            timestamp = row[table.timestamp],
-            payload = row[table.data],
+            timestamp = row[table.timestamp].toDeprecatedInstant(),
+            payload = row[table.data] ,
         )
         val token = ExposedStreamingToken.PositionToken(row[table.id].value)
         return event to token
