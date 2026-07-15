@@ -23,16 +23,14 @@ class LocalLockProvider(
     private val mainMutex = Mutex()
     private var lastCleanup: Long = System.currentTimeMillis()
 
-    internal suspend fun cleanup() {
-        mainMutex.withLock {
-            // Remove orphaned locks
-            locks.entries.filter {
-                it.value.get() == null
-            }.forEach {
-                locks.remove(it.key)
-            }
-            lastCleanup = System.currentTimeMillis()
+    internal fun cleanup() {
+        // Remove orphaned locks
+        locks.entries.filter {
+            it.value.get() == null
+        }.forEach {
+            locks.remove(it.key)
         }
+        lastCleanup = System.currentTimeMillis()
     }
 
     override suspend fun getLock(identity: String): KrescentLock = mainMutex.withLock {
